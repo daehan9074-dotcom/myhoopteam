@@ -193,7 +193,7 @@
       const m = myMem(teamId);
       const member = isActive(teamId);
       const v = {
-        id: t.id, name: t.name, sido: t.sido, area: t.area, intro: t.intro, demo: !!t.demo, logo: t.logo || '', kba: t.kba || '', theme: cleanTheme(t.theme),
+        id: t.id, name: t.name, sido: t.sido, area: t.area, intro: t.intro, demo: !!t.demo, logo: t.logo || '', logoStyle: cleanLogoStyle(t.logoStyle), kba: t.kba || '', theme: cleanTheme(t.theme),
         checkItems: member ? clone(t.checkItems || []) : [],
         days: t.days.map(dayView),
         memberCount: activeMembers(teamId).length,
@@ -234,6 +234,7 @@
       if (patch.notice != null) t.notice = clean(patch.notice, 2000);
       if (patch.logo != null) t.logo = cleanLogo(patch.logo);
       if (patch.theme !== undefined) t.theme = cleanTheme(patch.theme); // null = 기본 색으로
+      if (patch.logoStyle !== undefined) t.logoStyle = cleanLogoStyle(patch.logoStyle);
       if (patch.kba != null) { if (patch.kba !== 'yes' && patch.kba !== 'no') throw new Error('협회 등록 여부를 선택하세요'); t.kba = patch.kba; }
       if (patch.checkItems) {
         const seen = {};
@@ -498,6 +499,11 @@
   // 팀 색상: 주 색(상단 바·버튼) + 강조 색(아이콘·탭 밑줄). 없으면 null = 앱 기본 색
   const HEX = /^#[0-9a-fA-F]{6}$/;
   const cleanTheme = (v) => (v && HEX.test(v.main) && HEX.test(v.accent) ? { main: v.main.toLowerCase(), accent: v.accent.toLowerCase() } : null);
+  // 상단 바 로고: 크기(s·m·l·xl)·위치(right·left)·테두리·상단 바를 로고 배경색(bg)으로 칠할지. 없으면 null = 기본(보통·오른쪽·테두리)
+  const cleanLogoStyle = (v) => (v && typeof v === 'object' ? {
+    size: ['s', 'm', 'l', 'xl'].includes(v.size) ? v.size : 'm', pos: v.pos === 'left' ? 'left' : 'right',
+    border: v.border !== false, blend: !!v.blend && HEX.test(v.bg), bg: HEX.test(v.bg) ? v.bg.toLowerCase() : ''
+  } : null);
   function cleanProfile(p, owner) {
     p = p || {};
     return {

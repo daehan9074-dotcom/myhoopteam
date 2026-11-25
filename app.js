@@ -260,7 +260,7 @@
   function logoField(cur) {
     return '<label class="f">팀 로고</label><div class="row logo-row"><div class="av lg" id="logoPrev">' + (cur ? '<img src="' + esc(cur) + '" alt="">' : '<span class="muted">없음</span>') + '</div>' +
       '<label class="btn line sm">그림 고르기<input type="file" accept="image/*" id="logoIn" hidden></label><button class="btn gray sm" data-act="logoClear">지우기</button></div>' +
-      '<p class="muted mt8">로고는 팀 화면 <b>오른쪽 위</b>와 팀 찾기 목록·팀 소개에 보입니다.</p>';
+      '<p class="muted mt8">로고는 팀 화면 <b>상단 바</b>와 팀 찾기 목록·팀 소개에 보입니다.</p>';
   }
   function createHtml() {
     const days = S.cache.newDays || (S.cache.newDays = [{ weekday: 3, time: '20:00', end: '22:00', place: '' }]);
@@ -286,10 +286,6 @@
       ? [['attend', '참석'], ['status', '현황'], ['lineup', '팀 편성'], ['games', '기록']].concat(t.isAdmin ? [['admin', '관리']] : []) // 게시판은 0.5.1 에서 메뉴만 뺌 (게시판·투표·캘린더는 나중에 결정)
       : [['info', '팀 소개'], ['status', '참석 현황'], ['games', '경기 기록']];
     if (!tabs.some((x) => x[0] === r.tab)) r.tab = tabs[0][0];
-    const others = S.mems.filter((m) => m.status === 'active' && m.teamId !== t.id).length;
-    const right = (t.isMember && others ? '<button class="ab-btn" data-act="switchTeam">팀 바꾸기</button>' : '') +
-      (t.logo ? '<div class="ab-logo"><img src="' + esc(t.logo) + '" alt="' + esc(t.name) + ' 로고"></div>' : ''); // 팀 로고는 오른쪽 위
-    const sub = t.sido + (t.area ? ' · ' + t.area : '') + ' · 팀원 ' + t.memberCount + '명';
     let body;
     switch (r.tab) {
       case 'attend': body = await attendHtml(t); break;
@@ -300,9 +296,63 @@
       case 'admin': body = await adminHtml(t); break;
       default: body = infoHtml(t);
     }
-    return barHtml(t.name, !t.isMember || S.stack.length > 0, sub, right) +
+    return teamBarHtml(t) +
       '<div class="tabs">' + tabs.map((x) => '<button class="tab ' + (x[0] === r.tab ? 'on' : '') + '" data-act="tab" data-v="' + x[0] + '">' + x[1] + (x[0] === 'admin' && t.pendingCount ? '<span class="dot">' + t.pendingCount + '</span>' : '') + '</button>').join('') + '</div>' +
       '<main>' + body + '</main>';
+  }
+
+  /* 팀 화면 상단 바. 로고 크기·위치·테두리·'상단 바를 로고 배경색으로'는 team.logoStyle (관리 탭에서 고르는 중이면 그 값으로 미리 보기) */
+  const LOGO_DEF = { size: 'm', pos: 'right', border: true, blend: false, bg: '' };
+  const logoStyleOf = (t) => (S.route.tab === 'admin' && S.cache.logoStyle) || Object.assign({}, LOGO_DEF, t.logoStyle || {});
+  function teamBarHtml(t) {
+    const st = logoStyleOf(t);
+    const logo = S.route.tab === 'admin' && S.cache.logo !== undefined ? S.cache.logo : t.logo;
+    const others = S.mems.filter((m) => m.status === 'active' && m.teamId !== t.id).length;
+    const sw = t.isMember && others ? '<button class="ab-btn" data-act="switchTeam">팀 바꾸기</button>' : '';
+    const lg = logo ? '<div class="ab-logo sz-' + st.size + (st.border ? '' : ' no-border') + '"><img src="' + esc(logo) + '" alt="' + esc(t.name) + ' 로고"></div>' : '';
+    const sub = t.sido + (t.area ? ' · ' + t.area : '') + ' · 팀원 ' + t.memberCount + '명';
+    const showBack = !t.isMember || S.stack.length > 0;
+    let h = barHtml(t.name, showBack, sub, sw + (st.pos === 'right' ? lg : ''));
+    if (lg && st.pos === 'left') h = h.replace('<h1>', lg + '<h1>'); // 왼쪽 = 제목 앞
+    if (lg && st.blend && /^#[0-9a-f]{6}$/i.test(st.bg)) h = h.replace('<header class="appbar">', '<header class="appbar blend' + (lum(st.bg) > 0.6 ? ' light' : '') + '" style="background:' + st.bg + '">');
+    return h;
+  }
+  /* 관리 탭에서 로고 설정을 바꾸면 상단 바만 바로 다시 그린다 */
+  function logoPreview() {
+    const g = (id) => $('#' + id);
+    if (!g('lgSize') || !S.team) return;
+    const cur = logoStyleOf(S.team);
+    S.cache.logoStyle = { size: g('lgSize').value, pos: g('lgPos').value, border: g('lgBorder').value === '1', blend: g('lgBlend').value === '1', bg: cur.bg };
+    const ab = $('.appbar'); if (ab) ab.outerHTML = teamBarHtml(S.team);
+    syncBarHeight();
+  }
+  /* 상단 바 높이(로고 크기에 따라 바뀜)에 맞춰 탭 줄이 붙도록 */
+  function syncBarHeight() { const ab = $('.appbar'); if (ab) document.documentElement.style.setProperty('--ab-h', ab.offsetHeight + 'px'); }
+  /* 로고 그림의 가장자리 색 = 로고 배경색. 투명하면 흰색으로 본다 */
+  function logoBgColor(src) {
+    return new Promise((res) => {
+      if (!src) { res(''); return; }
+      const img = new Image();
+      img.onload = () => {
+        const n = 32, c = document.createElement('canvas'); c.width = c.height = n;
+        const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, n, n); x.drawImage(img, 0, 0, n, n);
+        const d = x.getImageData(0, 0, n, n).data, sum = [0, 0, 0]; let k = 0;
+        for (let i = 0; i < n; i++) [[i, 0], [i, n - 1], [0, i], [n - 1, i]].forEach(([px, py]) => { const o = (py * n + px) * 4; sum[0] += d[o]; sum[1] += d[o + 1]; sum[2] += d[o + 2]; k++; });
+        res(rgbHex(sum.map((v) => v / k)));
+      };
+      img.onerror = () => res('');
+      img.src = src;
+    });
+  }
+  function logoOptsHtml(t) {
+    const st = logoStyleOf(t);
+    const sel = (id, cur, opts) => '<select class="in" id="' + id + '" data-lg>' + opts.map((o) => '<option value="' + o[0] + '"' + (String(cur) === o[0] ? ' selected' : '') + '>' + o[1] + '</option>').join('') + '</select>';
+    return '<div class="logo-opts">' +
+      '<div><label class="f">로고 크기</label>' + sel('lgSize', st.size, [['s', '작게'], ['m', '보통'], ['l', '크게'], ['xl', '아주 크게']]) + '</div>' +
+      '<div><label class="f">로고 위치</label>' + sel('lgPos', st.pos, [['right', '오른쪽'], ['left', '왼쪽 (팀 이름 앞)']]) + '</div>' +
+      '<div><label class="f">로고 테두리</label>' + sel('lgBorder', st.border ? '1' : '0', [['1', '있음'], ['0', '없음']]) + '</div>' +
+      '<div><label class="f">상단 바 색</label>' + sel('lgBlend', st.blend ? '1' : '0', [['0', '팀 색상'], ['1', '로고 배경색과 하나로']]) + '</div></div>' +
+      '<p class="muted mt8" id="lgNote">' + (st.blend && st.bg ? '로고 배경색<span class="lg-bg" style="background:' + esc(st.bg) + '"></span> 으로 상단 바를 칠합니다. 흰 배경 로고는 테두리를 없애면 상단 바와 하나로 보입니다.' : '흰 배경 로고는 테두리 <b>없음</b> + 상단 바 <b>로고 배경색과 하나로</b>를 고르면 구분선 없이 이어집니다.') + ' 바꾸면 위 상단 바에 바로 보이고, <b>팀 정보 저장</b>을 눌러야 적용됩니다.</p>';
   }
 
   /* ----- 다른 팀이 보는 팀 소개 ----- */
@@ -349,7 +399,7 @@
       const tag = (m.role !== 'member' ? '<span class="chip">' + ROLE[m.role] + '</span>' : '') + (m.memberType !== '정회원' ? '<span class="chip gray">' + m.memberType + '</span>' : '');
       const extra = t.isMember && m.memberType === '정회원' ? t.checkItems.filter((c) => !m.checks[c.id]).map((c) => ' · <span style="color:var(--error)">' + esc(c.label) + ' 미완료</span>').join('') : '';
       const age = ms.k === 'age' && +m.birthYear ? ' · ' + esc(m.birthYear) + '년생' : '';
-      return hd + '<' + (clickable ? 'button data-act="memDlg" data-id="' + m.userId + '"' : 'div') + ' class="mem"><div class="no">' + (m.number ? esc(m.number) : initial(m.name)) + '</div><div class="grow"><div class="row"><span class="nm">' + esc(m.name) + '</span>' + tag + '</div><div class="ds">' + esc(m.position || '포지션 미정') + age + extra + '</div></div>' + (clickable ? '<span class="muted">›</span>' : '') + '</' + (clickable ? 'button' : 'div') + '>';
+      return hd + '<' + (clickable ? 'button data-act="memDlg" data-id="' + m.userId + '"' : 'div') + ' class="mem' + (m.memberType === '휴식회원' ? ' rest' : '') + '"><div class="no">' + (m.number ? esc(m.number) : initial(m.name)) + '</div><div class="grow"><div class="row"><span class="nm">' + esc(m.name) + '</span>' + tag + '</div><div class="ds">' + esc(m.position || '포지션 미정') + age + extra + '</div></div>' + (clickable ? '<span class="muted">›</span>' : '') + '</' + (clickable ? 'button' : 'div') + '>';
     }).join('');
     return '<div class="card"><h2>' + I.users + ' 팀원 ' + t.members.length + '명</h2>' +
       '<div class="mem-sort">' + keys.map((k) => '<button data-act="memSort" data-v="' + esc(k[0]) + '" class="' + (ms.k === k[0] ? 'on' : '') + '">' + esc(k[1]) + '</button>').join('') + '</div>' +
@@ -386,8 +436,8 @@
   function summaryCard(t, a) {
     const nx = nextDayId(t);
     return '<div class="card"><h2>' + I.chart + ' 이번 주 참석 인원' + (t.isMember && S.route.tab !== 'status' ? '<button class="btn line sm right" data-act="tab" data-v="status">현황 보기</button>' : '') + '</h2><div class="summary">' +
-      (t.days.length ? t.days.map((d) => d.id === nx
-        ? '<div class="s-item next"><span class="s-badge">가장 가까운 날</span><span class="s-day">' + esc(d.title) + (d.place ? '<small>' + esc(d.place) + '</small>' : '') + '</span><span class="s-cnt"><b>' + (a.counts[d.id] || 0) + '</b>명</span></div>'
+      (t.days.length ? t.days.map((d) => d.id === nx // 가장 가까운 날은 글자 표시 없이 테두리 색으로만 구분
+        ? '<div class="s-item next"><span class="s-day">' + esc(d.title) + (d.place ? '<small>' + esc(d.place) + '</small>' : '') + '</span><span class="s-cnt"><b>' + (a.counts[d.id] || 0) + '</b>명</span></div>'
         : '<span class="s-item ' + (d.passed ? 'past' : '') + '">' + esc(d.title) + ' <b>' + (a.counts[d.id] || 0) + '</b>명</span>').join('') : '<span class="empty">농구하는 날이 없습니다.</span>') + '</div></div>';
   }
 
@@ -402,7 +452,7 @@
     const secs = t.days.map((d) => {
       const yes = a.list.filter((x) => x.days.includes(d.id)).map((x) => x.name + (x.memberType !== '정회원' ? '(' + x.memberType + ')' : ''));
       const no = regular.filter((m) => voted[m.userId] && !voted[m.userId].days.includes(d.id)).map((m) => m.name);
-      return '<div class="st-sec' + (d.id === nx ? ' next' : (d.passed ? ' past' : '')) + '">' + (d.id === nx ? '<span class="s-badge">가장 가까운 날</span>' : '') +
+      return '<div class="st-sec' + (d.id === nx ? ' next' : (d.passed ? ' past' : '')) + '">' +
         '<h3>' + esc(d.title) + (d.place ? ' <span class="muted">' + esc(d.place) + '</span>' : '') + (d.passed ? ' <span class="muted">· 지난 날</span>' : '') + '</h3>' +
         '<div class="st-line"><span class="tag yes">참석 ' + yes.length + '</span>' + (esc(yes.join(', ')) || '-') + '</div>' +
         '<div class="st-line"><span class="tag no">불참 ' + no.length + '</span>' + (esc(no.join(', ')) || '-') + '</div></div>';
@@ -811,7 +861,7 @@
       '<div class="row mt8"><button class="btn line sm" data-act="ckAdd">+ 항목 추가</button><button class="btn sm" style="margin-left:auto" data-act="ckSave">항목 저장</button></div></div>' +
       membersCard(t, true).replace('<h2>' + I.users + '', '<h2>' + I.users + ' 눌러서 관리 ·') +
       themeCardHtml(t) +
-      '<div class="card"><h2>' + I.gear + ' 팀 정보</h2><label class="f">팀 이름</label><input class="in" id="admName" maxlength="30" value="' + esc(t.name) + '">' + logoField(S.cache.logo !== undefined ? S.cache.logo : t.logo) +
+      '<div class="card"><h2>' + I.gear + ' 팀 정보</h2><label class="f">팀 이름</label><input class="in" id="admName" maxlength="30" value="' + esc(t.name) + '">' + logoField(S.cache.logo !== undefined ? S.cache.logo : t.logo) + logoOptsHtml(t) +
       '<label class="f">대한민국농구협회 등록 팀</label><select class="in" id="admKba"><option value="yes"' + (t.kba === 'yes' ? ' selected' : '') + '>예 — 협회에 등록된 팀</option><option value="no"' + (t.kba !== 'yes' ? ' selected' : '') + '>아니오 — 등록하지 않은 동호회</option></select>' +
       '<label class="f">지역</label><select class="in" id="admSido">' + Api.SIDO.map((s) => '<option' + (t.sido === s ? ' selected' : '') + '>' + s + '</option>').join('') + '</select>' +
       '<label class="f">활동 지역·체육관</label><input class="in" id="admArea" maxlength="40" value="' + esc(t.area) + '">' +
@@ -924,10 +974,10 @@
     navExplore: () => go({ page: 'explore' }),
     navMe: () => go({ page: 'me' }),
     goCreate: () => { S.cache.newDays = null; S.cache.logo = undefined; go({ page: 'create' }); },
-    logoClear: () => { S.cache.logo = ''; const p = $('#logoPrev'); if (p) p.innerHTML = '<span class="muted">없음</span>'; },
+    logoClear: () => { S.cache.logo = ''; const p = $('#logoPrev'); if (p) p.innerHTML = '<span class="muted">없음</span>'; logoPreview(); },
     exSido: (el) => { S.cache.ex.sido = el.dataset.v; render(); },
     openTeam: (el) => go({ page: 'team', teamId: el.dataset.id, tab: '' }),
-    tab: (el) => { if (Api.refresh) Api.refresh(el.dataset.v === S.route.tab ? 0 : 5000); S.route.tab = el.dataset.v; S.cache.logo = undefined; S.cache.themeDraft = null; render(); window.scrollTo(0, 0); }, // 탭을 옮기면 5초 넘은 자료는, 같은 탭을 다시 누르면 무조건 서버에서 새로 받는다
+    tab: (el) => { if (Api.refresh) Api.refresh(el.dataset.v === S.route.tab ? 0 : 5000); S.route.tab = el.dataset.v; S.cache.logo = undefined; S.cache.logoStyle = null; S.cache.themeDraft = null; render(); window.scrollTo(0, 0); }, // 탭을 옮기면 5초 넘은 자료는, 같은 탭을 다시 누르면 무조건 서버에서 새로 받는다
     switchTeam: () => {
       const act = S.mems.filter((m) => m.status === 'active');
       const bg = modal('<h3>팀 바꾸기</h3>' + act.map((m) => '<button class="team-card" data-id="' + m.teamId + '">' + teamAv(m.teamLogo, m.teamName) + '<div class="grow"><div class="nm">' + esc(m.teamName) + (m.primary ? ' <span class="chip">★ 기본</span>' : '') + '</div><div class="ds">' + esc(m.sido) + ' · ' + ROLE[m.role] + '</div></div></button>').join('') + '<p class="muted">앱을 열면 ★ 기본 팀이 먼저 나옵니다. 내 정보에서 바꿀 수 있습니다.</p>');
@@ -1048,7 +1098,12 @@
     admInfo: async () => {
       const patch = { name: $('#admName').value, sido: $('#admSido').value, area: $('#admArea').value, intro: $('#admIntro').value, kba: $('#admKba').value };
       if (S.cache.logo !== undefined) patch.logo = S.cache.logo;
-      await run(Api.updateTeam(S.team.id, patch), '저장했습니다'); S.cache.logo = undefined; render();
+      if (S.cache.logoStyle || patch.logo !== undefined) {
+        const st = Object.assign({}, logoStyleOf(S.team));
+        st.bg = await logoBgColor(patch.logo !== undefined ? patch.logo : S.team.logo); // 로고가 바뀌었을 수 있으니 저장할 때 다시 잰다
+        patch.logoStyle = st;
+      }
+      await run(Api.updateTeam(S.team.id, patch), '저장했습니다'); S.cache.logo = undefined; S.cache.logoStyle = null; render();
     },
     ckAdd: () => { const v = readChecks(); v.push({ id: '', label: '' }); $('#admChecks').innerHTML = checkRowsHtml(v); const ins = document.querySelectorAll('#admChecks input'); ins[ins.length - 1].focus(); },
     ckDel: (el) => { const row = el.closest('[data-ck-row]'), v = readChecks(), i = [...document.querySelectorAll('#admChecks [data-ck-row]')].indexOf(row); v.splice(i, 1); $('#admChecks').innerHTML = checkRowsHtml(v); },
@@ -1102,9 +1157,24 @@
       URL.revokeObjectURL(url);
       S.cache.logo = data;
       const p = $('#logoPrev'); if (p) p.innerHTML = '<img src="' + data + '" alt="">';
+      if ($('#lgSize') && S.team) logoBgColor(data).then((bg) => { logoPreview(); S.cache.logoStyle.bg = bg; logoPreview(); });
     };
     img.onerror = () => { URL.revokeObjectURL(url); toast('그림을 읽지 못했습니다', 'error'); };
     img.src = url;
+  });
+  // 로고 설정: 고르면 상단 바 미리 보기. '로고 배경색과 하나로'를 처음 고르면 배경색을 잰다
+  document.addEventListener('change', (e) => {
+    if (!e.target.matches || !e.target.matches('[data-lg]')) return;
+    logoPreview();
+    const st = S.cache.logoStyle;
+    if (st && st.blend) {
+      const src = S.cache.logo !== undefined ? S.cache.logo : S.team.logo;
+      if (!src) { toast('먼저 팀 로고를 고르세요', 'error'); return; }
+      logoBgColor(src).then((bg) => {
+        st.bg = bg; logoPreview();
+        const n = $('#lgNote'); if (n) n.innerHTML = '로고 배경색<span class="lg-bg" style="background:' + esc(bg) + '"></span> 으로 상단 바를 칠합니다. <b>팀 정보 저장</b>을 눌러야 적용됩니다.';
+      });
+    }
   });
   // 농구하는 날: 요일을 바꾸면 상자 머리줄(요일·이번 주 날짜)도 바로 바꾼다
   document.addEventListener('change', (e) => {
@@ -1148,6 +1218,7 @@
     }
   });
   function afterRender() {
+    syncBarHeight();
     window.onbeforeunload = Ext.unsaved && Ext.unsaved() ? () => '기록 입력 중입니다' : null;
   }
 

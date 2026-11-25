@@ -21,7 +21,7 @@ button{cursor:pointer;border:none;background:none}
 .appbar .back{font-size:1.3rem;line-height:1;padding:2px 6px 2px 0}
 
 /* 팀 안 탭 */
-.tabs{position:sticky;top:calc(var(--safe-top) + 52px);z-index:15;background:var(--white);display:flex;overflow-x:auto;scrollbar-width:none;border-bottom:1px solid var(--border)}
+.tabs{position:sticky;top:var(--ab-h,calc(var(--safe-top) + 52px));z-index:15;background:var(--white);display:flex;overflow-x:auto;scrollbar-width:none;border-bottom:1px solid var(--border)}
 .tabs::-webkit-scrollbar{display:none}
 .tab{flex:1 0 auto;padding:11px 9px;font-size:.86rem;font-weight:600;color:var(--label);border-bottom:2.5px solid transparent;white-space:nowrap}
 .tab.on{color:var(--green);border-bottom-color:var(--green)}
@@ -446,16 +446,19 @@ body.rot .rs-tbl th{min-width:40px}
 .day-date{font-size:.76rem;color:var(--label);font-weight:600}
 .day-hd .btn.sm{padding:5px 9px;font-size:.74rem}
 
-/* 가장 가까운 농구하는 날: 크기와 색으로 부각 */
-.summary .s-item.next{flex:1 1 100%;display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--green);color:#fff;border-left:6px solid var(--accent);border-radius:12px;padding:11px 14px;font-size:.95rem;font-weight:700;box-shadow:0 3px 10px rgba(0,0,0,.12)}
+/* 가장 가까운 농구하는 날: 안은 흰색 그대로, 크기와 테두리 색으로만 부각 */
+.summary .s-item.next{flex:1 1 100%;display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:#fff;color:var(--green);border:2px solid var(--accent);border-radius:12px;padding:10px 14px;font-size:.95rem;font-weight:700}
 .s-item.next .s-day{display:flex;flex-direction:column;flex:1;min-width:0}
-.s-item.next .s-day small{font-size:.74rem;font-weight:500;opacity:.85;margin-top:1px}
+.s-item.next .s-day small{font-size:.74rem;font-weight:500;color:var(--label);margin-top:1px}
 .s-item.next .s-cnt{font-size:.9rem;white-space:nowrap}
 .summary .s-item.next .s-cnt b{font-size:1.9rem;line-height:1;margin-right:2px}
 .s-badge{display:inline-block;background:var(--accent);color:#fff;font-size:.68rem;font-weight:800;border-radius:20px;padding:2px 9px;flex:none}
 .s-item.next .s-badge{flex-basis:100%;max-width:max-content}
-.st-sec.next{background:var(--green-stripe);border:2px solid var(--accent);border-radius:12px;padding:12px;margin:2px 0 10px}
-.st-sec.next h3{font-size:1.06rem;margin:6px 0 8px}
+.st-sec.next{background:#fff;border:2px solid var(--accent);border-radius:12px;padding:12px;margin:2px 0 10px}
+.st-sec.next h3{font-size:1.06rem;margin:0 0 8px}
+/* 팀원 목록: 휴식회원은 회색 바탕 */
+.mem.rest{background:#eceef1;border-radius:10px;padding:10px 8px;border-bottom-color:#fff}
+.mem.rest .no{background:#d9dde3;color:#6b7280}
 .st-sec.next .st-line{font-size:.9rem}
 .st-sec.next+.st-sec{border-top:none}
 .st-sec.past{opacity:.55}
@@ -499,6 +502,19 @@ body.rot .rs-tbl th{min-width:40px}
 /* 상단 바 오른쪽 위 팀 로고 */
 .ab-logo{width:38px;height:38px;border-radius:10px;overflow:hidden;flex:none;background:#fff;box-shadow:0 0 0 2px rgba(255,255,255,.5)}
 .ab-logo img{width:100%;height:100%;object-fit:cover;display:block}
+.ab-logo.sz-s{width:30px;height:30px;border-radius:8px}
+.ab-logo.sz-l{width:48px;height:48px;border-radius:12px}
+.ab-logo.sz-xl{width:58px;height:58px;border-radius:14px}
+.ab-logo.no-border{box-shadow:none;border-radius:0;background:transparent}
+/* 상단 바를 로고 배경색과 하나로 (흰 로고면 흰 상단 바) */
+.appbar.blend{box-shadow:0 1px 0 rgba(0,0,0,.06)}
+.appbar.blend.light{color:var(--text)}
+.appbar.blend.light .ab-btn{color:var(--text);border-color:rgba(0,0,0,.25)}
+.appbar.blend.light .sub{color:var(--label);opacity:1}
+/* 로고 설정 */
+.logo-opts{display:grid;grid-template-columns:1fr 1fr;gap:4px 10px}
+.logo-opts label.f{margin-top:8px}
+.lg-bg{display:inline-block;width:14px;height:14px;border-radius:4px;border:1px solid rgba(0,0,0,.2);vertical-align:-2px;margin-left:4px}
 
 /* 경기 목록: 날짜별 접기 */
 .gday{border:1.5px solid var(--border);border-radius:11px;margin-top:8px;background:#fff}
@@ -551,3 +567,4 @@ body.rot .ps-fix{max-height:calc(var(--rot-h) - 110px)}
 .go-note .i{flex:none;width:1.2em;height:1.2em;margin-top:1px;color:var(--accent)}
 /* 팀 링크 카드 */
 .link-box{margin-top:8px;padding:9px 11px;border-radius:9px;background:var(--field);border:1px dashed var(--border);font-size:.8rem;word-break:break-all;color:var(--text);user-select:all}
+.mem.rest .chip{background:#fff}
