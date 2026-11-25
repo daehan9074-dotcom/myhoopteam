@@ -1,0 +1,553 @@
+:root{
+  --green:#1d2b45; --green-mid:#2c4168; --green-light:#e8edf5; --green-stripe:#f3f6fa;
+  --beige:#f3f4f6; --white:#fff; --field:#f9fafb; --border:#d9dde4; --text:#161a22;
+  --label:#646b78; --error:#c0392b; --orange:#f26a1b; --accent:#f26a1b; --kakao:#fee500;
+  --shadow:0 4px 24px rgba(29,43,69,.08),0 1px 6px rgba(0,0,0,.06);
+  --font:system-ui,-apple-system,'Segoe UI',Roboto,'Apple SD Gothic Neo','Noto Sans KR','Malgun Gothic',sans-serif;
+  --safe-top:env(safe-area-inset-top,0px); --safe-bottom:env(safe-area-inset-bottom,0px);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{font-family:var(--font);background:var(--beige);color:var(--text);-webkit-text-size-adjust:100%;-webkit-tap-highlight-color:transparent;overscroll-behavior-y:none}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer;border:none;background:none}
+#app{min-height:100%;display:flex;flex-direction:column}
+
+/* 상단 바 */
+.appbar{position:sticky;top:0;z-index:20;background:var(--green);color:#fff;padding:calc(var(--safe-top) + 10px) 16px 10px;display:flex;align-items:center;gap:10px;box-shadow:0 2px 8px rgba(0,0,0,.12)}
+.appbar h1{font-size:1.05rem;font-weight:700;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.appbar .sub{display:block;font-size:.72rem;font-weight:500;opacity:.8;margin-top:1px}
+.appbar .ab-btn{color:#fff;font-size:.8rem;font-weight:600;border:1.5px solid rgba(255,255,255,.55);border-radius:9px;padding:6px 10px;white-space:nowrap}
+.appbar .back{font-size:1.3rem;line-height:1;padding:2px 6px 2px 0}
+
+/* 팀 안 탭 */
+.tabs{position:sticky;top:calc(var(--safe-top) + 52px);z-index:15;background:var(--white);display:flex;overflow-x:auto;scrollbar-width:none;border-bottom:1px solid var(--border)}
+.tabs::-webkit-scrollbar{display:none}
+.tab{flex:1 0 auto;padding:11px 9px;font-size:.86rem;font-weight:600;color:var(--label);border-bottom:2.5px solid transparent;white-space:nowrap}
+.tab.on{color:var(--green);border-bottom-color:var(--green)}
+.tab .dot{display:inline-block;min-width:17px;height:17px;padding:0 4px;border-radius:9px;background:var(--error);color:#fff;font-size:.68rem;line-height:17px;margin-left:4px}
+
+main{flex:1;width:100%;max-width:640px;margin:0 auto;padding:14px 14px calc(84px + var(--safe-bottom))}
+
+/* 하단 메뉴 */
+.bottom-nav{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--white);border-top:1px solid var(--border);display:flex;padding-bottom:var(--safe-bottom)}
+.bottom-nav button{flex:1;padding:8px 0 9px;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:.72rem;font-weight:600;color:var(--label)}
+.bottom-nav button .ic{font-size:1.25rem;line-height:1.1}
+.bottom-nav button.on{color:var(--green)}
+
+/* 카드·공통 */
+.card{background:var(--white);border-radius:14px;box-shadow:var(--shadow);padding:16px;margin-bottom:12px}
+.card h2{font-size:.98rem;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.card h2 .right{margin-left:auto}
+.muted{color:var(--label);font-size:.84rem}
+.empty{color:#8b92a0;font-size:.86rem;padding:6px 0}
+.row{display:flex;align-items:center;gap:8px}
+.wrap{flex-wrap:wrap}
+.grow{flex:1;min-width:0}
+.mt8{margin-top:8px}.mt12{margin-top:12px}.mt16{margin-top:16px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:11px 16px;border-radius:11px;font-weight:700;font-size:.92rem;background:var(--green);color:#fff;transition:.15s}
+.btn:active{transform:scale(.98)}
+.btn:disabled{opacity:.5}
+.btn.block{width:100%}
+.btn.line{background:var(--white);color:var(--green);border:1.5px solid var(--green)}
+.btn.gray{background:#e6e9ee;color:var(--text)}
+.btn.danger{background:var(--white);color:var(--error);border:1.5px solid var(--error)}
+.btn.sm{padding:7px 11px;font-size:.8rem;border-radius:9px}
+.btn.kakao{background:var(--kakao);color:#191600}
+.btn.apple{background:#000;color:#fff}
+.chip{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:.74rem;font-weight:700;background:var(--green-light);color:var(--green)}
+.chip.warn{background:#fdecea;color:var(--error)}
+.chip.gray{background:#eee;color:#666}
+.chip.orange{background:#fdf0e6;color:#b95a1c}
+.lock{display:flex;align-items:center;gap:8px;background:#f4f1eb;border:1px dashed var(--border);border-radius:11px;padding:12px;color:var(--label);font-size:.84rem}
+
+/* 입력 */
+label.f{display:block;font-size:.8rem;font-weight:700;color:var(--label);margin:12px 0 5px}
+input.in,select.in,textarea.in{width:100%;padding:11px 12px;border:1.5px solid var(--border);border-radius:10px;background:var(--field);font-size:.95rem;outline:none}
+input.in:focus,select.in:focus,textarea.in:focus{border-color:var(--green);background:#fff}
+textarea.in{min-height:84px;resize:vertical}
+.seg{display:flex;gap:6px;flex-wrap:wrap}
+.seg button{padding:8px 12px;border-radius:9px;border:1.5px solid var(--border);background:var(--white);font-size:.84rem;font-weight:600}
+.seg button.on{border-color:var(--green);background:var(--green);color:#fff}
+
+/* 로그인 */
+.login{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:calc(var(--safe-top) + 40px) 24px calc(var(--safe-bottom) + 32px);text-align:center;background:linear-gradient(180deg,var(--green) 0%,var(--green-mid) 58%,var(--beige) 58%)}
+.login .logo{width:104px;height:104px;border-radius:26px;background:var(--white);display:flex;align-items:center;justify-content:center;box-shadow:var(--shadow);margin-bottom:16px}
+.login h1{color:#fff;font-size:1.5rem;margin-bottom:6px}
+.login p.lead{color:rgba(255,255,255,.88);font-size:.9rem;margin-bottom:28px}
+.login .box{width:100%;max-width:360px;background:var(--white);border-radius:16px;box-shadow:var(--shadow);padding:22px 18px}
+.login .box .btn{margin-top:8px}
+.login .fine{font-size:.74rem;color:var(--label);margin-top:14px;line-height:1.55}
+.login .fine a{color:var(--green)}
+
+/* 팀 목록 */
+.team-card{display:flex;gap:12px;align-items:center;padding:13px;border-radius:13px;background:var(--white);box-shadow:var(--shadow);margin-bottom:10px;width:100%;text-align:left}
+.team-card .av{width:46px;height:46px;border-radius:12px;background:var(--green-light);color:var(--green);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:1.1rem;flex:none}
+.team-card .nm{font-weight:700;font-size:.96rem}
+.team-card .ds{font-size:.78rem;color:var(--label);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sido-scroll{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none;margin:0 -14px 10px;padding:0 14px 4px}
+.sido-scroll::-webkit-scrollbar{display:none}
+.sido-scroll button{flex:none;padding:7px 12px;border-radius:20px;border:1.5px solid var(--border);background:var(--white);font-size:.82rem;font-weight:600}
+.sido-scroll button.on{background:var(--green);border-color:var(--green);color:#fff}
+
+/* 참석 */
+.summary{display:flex;flex-wrap:wrap;gap:6px}
+.summary .s-item{background:var(--green-light);color:var(--green);border-radius:9px;padding:6px 10px;font-size:.82rem;font-weight:600}
+.summary .s-item.past{background:#eee;color:#999;text-decoration:line-through}
+.summary .s-item b{font-size:.95rem}
+.notice{white-space:pre-wrap;line-height:1.6;font-size:.9rem}
+.cmt{font-size:.88rem;line-height:1.5;padding:6px 0;border-bottom:1px dashed #e7e2da}
+.cmt:last-child{border-bottom:none}
+.day-block{border:1.5px solid var(--border);border-radius:12px;padding:12px;margin-bottom:8px;background:var(--field);display:flex;gap:10px;align-items:flex-start;width:100%;text-align:left}
+.day-block.on{border-color:var(--green);background:var(--green-stripe)}
+.day-block.past{opacity:.55}
+.day-block .ck{width:22px;height:22px;border-radius:6px;border:2px solid var(--border);flex:none;display:flex;align-items:center;justify-content:center;color:#fff;font-size:.8rem;margin-top:1px;background:#fff}
+.day-block.on .ck{background:var(--green);border-color:var(--green)}
+.day-block .dt{font-weight:700}
+.day-block .dd{font-size:.8rem;color:var(--label);margin-top:2px}
+.me-card{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:.84rem;background:var(--green-stripe);border-radius:11px;padding:10px 12px}
+.me-card b{color:var(--label);margin-right:4px;font-weight:600}
+.prev{background:#fff8e6;border:1px solid #f1d58d;color:#7a5b00;border-radius:10px;padding:9px 11px;font-size:.82rem;margin-top:8px}
+
+/* 현황 */
+.st-sec{border-top:1px solid #eee;padding:12px 0}
+.st-sec:first-of-type{border-top:none;padding-top:0}
+.st-sec h3{font-size:.92rem;margin-bottom:6px}
+.st-line{font-size:.84rem;line-height:1.6}
+.tag{display:inline-block;font-size:.7rem;font-weight:700;border-radius:6px;padding:1px 6px;margin-right:6px}
+.tag.yes{background:var(--green);color:#fff}.tag.no{background:#c3c8d1;color:#fff}.tag.none{background:#f1c27d;color:#5a3a00}
+
+/* 팀원 목록 */
+.mem{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #eceef2;width:100%;text-align:left}
+.mem:last-child{border-bottom:none}
+.mem .no{width:34px;height:34px;border-radius:50%;background:var(--green-light);color:var(--green);font-weight:800;font-size:.82rem;display:flex;align-items:center;justify-content:center;flex:none}
+.mem .nm{font-weight:700;font-size:.92rem}
+.mem .ds{font-size:.76rem;color:var(--label)}
+
+/* 게시판 */
+.post{border-bottom:1px solid #eee;padding:12px 0}
+.post:last-child{border-bottom:none}
+.post .hd{display:flex;align-items:center;gap:8px;font-size:.8rem;color:var(--label)}
+.post .hd b{color:var(--text);font-size:.88rem}
+.post .bd{white-space:pre-wrap;line-height:1.55;margin:6px 0;font-size:.92rem}
+.post .cm{background:#f5f6f8;border-radius:9px;padding:7px 10px;margin-top:5px;font-size:.84rem;display:flex;gap:6px;align-items:flex-start}
+.post .cm .x{margin-left:auto;color:#aaa;font-size:.8rem}
+.linkbtn{color:var(--label);font-size:.78rem;text-decoration:underline}
+
+/* 팀 편성 */
+.pick{display:flex;flex-wrap:wrap;gap:6px}
+.pick button{padding:7px 11px;border-radius:20px;border:1.5px solid var(--border);background:#fff;font-size:.84rem;font-weight:600}
+.pick button.on{background:var(--green);border-color:var(--green);color:#fff}
+.pick button.guest.on{background:var(--orange);border-color:var(--orange)}
+.tg-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
+.tg-team{border-radius:12px;border:2px solid var(--border);padding:10px;background:#fff}
+.tg-team h4{font-size:.9rem;margin-bottom:6px;display:flex;align-items:center;gap:6px}
+.tg-team .pl{font-size:.86rem;padding:5px 0;border-bottom:1px dashed #eee;display:flex;gap:6px;width:100%;text-align:left}
+.swatch{width:14px;height:14px;border-radius:4px;border:1px solid #bbb;display:inline-block;flex:none}
+
+/* 경기 기록 */
+.game{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid #eceef2;width:100%;text-align:left}
+.game:last-child{border-bottom:none}
+.game .sc{font-weight:800;font-size:1rem;margin-left:auto;white-space:nowrap}
+.scoreboard{display:flex;align-items:center;justify-content:center;gap:16px;padding:6px 0 12px}
+.scoreboard .t{text-align:center}
+.scoreboard .t .n{font-size:.82rem;font-weight:700;display:flex;align-items:center;gap:5px;justify-content:center}
+.scoreboard .t .p{font-size:2rem;font-weight:800;line-height:1.1}
+.sheet{width:100%;border-collapse:collapse;font-size:.82rem}
+.sheet th,.sheet td{padding:6px 3px;text-align:center;border-bottom:1px solid #eee}
+.sheet th{color:var(--label);font-weight:600;font-size:.74rem;white-space:nowrap}
+.sheet td.nm{text-align:left;font-weight:700;white-space:nowrap;max-width:90px;overflow:hidden;text-overflow:ellipsis}
+.sheet tr.tot td{font-weight:800;background:#f5f6f8}
+.sheet-wrap{overflow-x:auto;margin:0 -4px}
+.statpad{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:10px}
+.statpad button{padding:12px 0;border-radius:10px;background:var(--green-light);color:var(--green);font-weight:800;font-size:.9rem}
+.statpad button.pt{background:var(--green);color:#fff}
+.statpad button.miss{background:#eceef2;color:#646b78}
+.statpad button.neg{background:#fdecea;color:var(--error)}
+.statpad button.undo{grid-column:1/-1;background:#e6e9ee;color:var(--text);font-size:.82rem;white-space:nowrap}
+
+/* 팀 편성: 분배 조건 (같은 팀·다른 팀) */
+.tgc-hd{font-size:.8rem;font-weight:700;margin:10px 0 6px}
+.tgc-hd.same{color:var(--green)}.tgc-hd.diff{color:var(--error)}
+.tgc-row{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:6px}
+.tgc-row select.in{flex:1 1 110px;min-width:0;width:auto;padding:8px 6px;font-size:.84rem}
+.pick button small{font-weight:500;opacity:.8}
+/* 팀 편성: 실력 균형 배정 */
+.btn.skill{background:#5b3a7a}
+.tg-skill{font-size:.7rem;font-weight:600;color:#5b3a7a;margin:-2px 0 4px}
+.tg-skill span{font-weight:500;color:#8a7a98}
+.tg-skill .strong{color:#c0392b}.tg-skill .weak{color:#1565c0}
+.tg-skill-info{background:#f6f1fa;border:1.5px solid #d9c8e8;border-radius:12px;padding:12px 14px;margin:4px 0 12px;font-size:.8rem;line-height:1.6;color:#3d2a50}
+.tg-skill-info .hd{font-weight:800;color:#5b3a7a;font-size:.88rem;margin-bottom:6px}
+.tg-skill-info ol{margin:0;padding-left:18px}
+.tg-skill-info li{margin:3px 0}
+.tg-skill-info ul{margin:4px 0 0;padding-left:16px;color:#5a4a68}
+.tg-skill-info summary{cursor:pointer;font-weight:700;color:#5b3a7a;margin-top:4px}
+
+/* 선수 기록·선수 지표 표 */
+.ps-note{font-size:.78rem;color:var(--label);line-height:1.6}
+.ps-note b{color:var(--text)}
+.ps-key{padding:1px 7px;border-radius:5px}
+.ps-help{margin:8px 0;border:1px solid var(--border);border-radius:10px;background:#f8f9fb;padding:8px 10px}
+.ps-help summary{cursor:pointer;font-weight:700;color:var(--green);font-size:.84rem;padding:2px 0}
+.ps-help[open] summary{margin-bottom:8px}
+.ps-wrap{overflow-x:auto;margin:6px -4px 0;-webkit-overflow-scrolling:touch}
+.ps-tbl{border-collapse:separate;border-spacing:0;font-size:.78rem;white-space:nowrap}
+.ps-tbl th{background:var(--green);color:#fff;padding:5px 8px;font-size:.72rem;font-weight:700;text-align:center;line-height:1.25;vertical-align:middle}
+.ps-tbl th small{display:block;font-weight:600;opacity:.8;font-size:.6rem}
+.ps-tbl th.ps-sort.on{box-shadow:inset 0 -3px 0 #ffd43b}
+.ps-tbl .ps-arw{font-size:.6rem;margin-left:2px;color:#ffd43b}
+.ps-tbl td{padding:7px 8px;text-align:center;border-bottom:1px solid #eee;background:#fff}
+.ps-tbl tbody tr:nth-child(even) td{background:#f7f8fa}
+.ps-tbl tfoot td{font-weight:700;background:#f5f6f8}
+.ps-tbl .ps-name{position:sticky;left:0;z-index:1;text-align:left;font-weight:700}
+.ps-tbl th.ps-name{z-index:2}
+.ps-tbl .ps-nb{font-weight:700;color:var(--green);text-decoration:underline;text-underline-offset:3px;font-size:inherit;padding:2px 0}
+.ps-tbl td.ps-pts{font-weight:800}
+.ps-top,.ps-tbl td.ps-top,.ps-tbl tbody tr:nth-child(even) td.ps-top{background:#d5ecd5;color:#1d5620;font-weight:700}
+.ps-bad,.ps-tbl td.ps-bad,.ps-tbl tbody tr:nth-child(even) td.ps-bad{background:#fadbd6;color:#a2301f;font-weight:700}
+.ps-up{color:#2f9e44;font-size:.6rem;margin-left:2px}
+.ps-up.ps-down{color:#1c7ed6}
+.ps-win{color:var(--green)}.ps-lose{color:#d9480f;font-weight:700}
+/* 칸을 누르면 그 줄(같은 선수)을 노랗게 표시 */
+.ps-tbl tr.ps-sel td,.ps-tbl tbody tr.ps-sel:nth-child(even) td{background:#ffeeb0;box-shadow:inset 0 2px 0 #f0a500,inset 0 -2px 0 #f0a500}
+.ps-tbl tr.ps-sel td.ps-top,.ps-tbl tbody tr.ps-sel:nth-child(even) td.ps-top{background:#cfe8cf}
+.ps-tbl tr.ps-sel td.ps-bad,.ps-tbl tbody tr.ps-sel:nth-child(even) td.ps-bad{background:#f8dad5}
+.av-tbl thead tr.av-grp th{background:#141f33;font-size:.66rem;padding:3px 4px}
+.av-tbl th.av-공격,.av-tag.av-공격{background:#2f5f8a}
+.av-tbl th.av-수비,.av-tag.av-수비{background:#7a4b1e}
+.av-tbl th.av-종합,.av-tag.av-종합{background:#5b3a7a}
+.ps-tbl td.av-neg{color:#b03a2e}
+.av-info{margin:6px 0 8px;border:1.5px solid #f0c94a;background:#fffbea;border-radius:10px;padding:9px 12px;font-size:.8rem;line-height:1.55}
+.av-info>div{margin-top:3px}
+.av-info small,.av-help-tbl small{color:var(--label)}
+.av-info-hd{display:flex;align-items:center;gap:7px;font-size:.9rem;margin-top:0!important}
+.av-tag{color:#fff;font-size:.7rem;font-weight:700;padding:1px 8px;border-radius:100px}
+.av-info-lb{display:inline-block;min-width:48px;font-weight:700;color:var(--green);margin-right:4px}
+.av-info-x{margin-left:auto;font-size:.95rem;color:var(--label);padding:0 4px}
+.av-help-tbl td{white-space:normal;vertical-align:top}
+.av-help-tbl td.av-l{text-align:left;min-width:160px;max-width:280px;line-height:1.45}
+/* 선수 평가 카드 */
+.ev-card{border:1.5px solid #d5deea;background:#f4f7fb;border-radius:12px;padding:12px 14px;margin:4px 0 12px}
+.ev-hd{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.ev-type{background:var(--green);color:#fff;font-weight:800;font-size:.8rem;padding:3px 11px;border-radius:100px}
+.ev-date{font-size:.72rem;color:var(--label);margin-left:auto}
+.ev-line{margin:9px 0 8px;font-size:.9rem;font-weight:700;color:#1d2b45;line-height:1.5}
+.ev-cols{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:420px){.ev-cols{grid-template-columns:1fr}}
+.ev-lb{font-size:.78rem;font-weight:800;margin-bottom:3px}
+.ev-lb.good{color:#1d5620}.ev-lb.bad{color:#a2551b}.ev-lb.up{color:#2f5f8a;margin-top:8px}
+.ev-ul{margin:0;padding-left:18px;font-size:.8rem;line-height:1.6}
+.ev-none{font-size:.78rem;color:#9aa1ad}
+.ev-foot{font-size:.68rem;color:var(--label);margin-top:9px}
+.plist{display:flex;flex-wrap:wrap;gap:6px}
+.plist button{padding:8px 10px;border-radius:9px;border:2px solid var(--border);background:#fff;font-size:.82rem;font-weight:700;display:flex;align-items:center;gap:5px}
+.plist button.on{border-color:var(--green);box-shadow:0 0 0 2px var(--green) inset}
+.plist button small{font-weight:600;color:var(--label)}
+
+/* 대화상자·토스트 */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:50;display:flex;align-items:flex-end;justify-content:center;animation:fade .15s}
+.modal{background:var(--white);width:100%;max-width:520px;max-height:88vh;overflow-y:auto;border-radius:18px 18px 0 0;padding:18px 18px calc(18px + var(--safe-bottom));animation:up .2s}
+.modal h3{font-size:1.02rem;margin-bottom:8px}
+.modal .acts{display:flex;gap:8px;margin-top:16px}
+.modal .acts .btn{flex:1}
+@media(min-width:600px){.modal-bg{align-items:center}.modal{border-radius:18px}}
+@keyframes fade{from{opacity:0}}@keyframes up{from{transform:translateY(30px);opacity:.4}}
+#toast{position:fixed;left:50%;bottom:calc(92px + var(--safe-bottom));transform:translateX(-50%);z-index:60;background:#222;color:#fff;padding:10px 16px;border-radius:10px;font-size:.86rem;opacity:0;pointer-events:none;transition:.2s;max-width:90vw;text-align:center}
+#toast.show{opacity:1}
+#toast.error{background:var(--error)}
+#toast.success{background:var(--green)}
+.demo-bar{background:#fff8e6;color:#7a5b00;font-size:.74rem;text-align:center;padding:5px 10px;border-bottom:1px solid #f1d58d}
+
+/* =========================================================
+ *  기록 입력(기록지) · 선수 기록 창 (record.js)
+ * ========================================================= */
+/* 화면 전체를 덮는 창 */
+body.has-full{overflow:hidden}
+#full{position:fixed;inset:0;z-index:40;background:var(--beige);overflow:auto;-webkit-overflow-scrolling:touch}
+.full-in{max-width:1100px;margin:0 auto;padding:calc(var(--safe-top) + 12px) 12px calc(var(--safe-bottom) + 24px)}
+.acts{display:flex;gap:8px;margin-top:16px}
+.acts .btn{flex:1}
+.btn.save{background:#1565c0}
+/* 가로 보기: 세로로 든 채 창을 90도 돌려 그린다 (크기는 JS 가 재서 --rot-w/--rot-h 로 넣어 준다) */
+/* 바깥 창(#full·대화상자 배경)은 화면 크기 그대로 두고 넘친 부분을 잘라야 한다.
+   돌리기 전 상자 폭(= 화면 높이)이 화면보다 넓으면 앱이 페이지를 넓게 잡고 축소해서 왼쪽 반에만 그려진다 */
+html.rot-html,body.rot{overflow:hidden}
+body.rot #full{overflow:hidden;transform:translateZ(0)}
+body.rot .full-in{position:absolute;top:0;left:0;width:var(--rot-w);height:var(--rot-h);max-width:none;margin:0;overflow:auto;-webkit-overflow-scrolling:touch;
+  transform-origin:0 0;transform:rotate(90deg) translateY(-100%);padding:10px 14px 18px}
+body.rot .modal-bg{overflow:hidden;transform:translateZ(0);align-items:center;justify-content:center}
+body.rot .modal{flex:none;width:min(520px,calc(var(--rot-w) - 40px));max-width:none;max-height:calc(var(--rot-h) - 24px);border-radius:16px;padding-bottom:18px;animation:none;transform:rotate(90deg)}
+body.rot #toast{left:34px;top:50%;bottom:auto;transform:translate(-50%,-50%) rotate(90deg)}
+
+.rs-hd{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.rs-hd h3{font-size:1.05rem}
+.rs-sub{font-size:.76rem;color:var(--label)}
+.rs-hd-r{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.rs-tool{display:inline-flex;align-items:center;justify-content:center;gap:4px;padding:8px 12px;border-radius:9px;border:1.5px solid var(--border);background:#fff;font-size:.82rem;font-weight:700;color:var(--text);text-decoration:none;white-space:nowrap}
+.rs-tool.warn{border-color:#f0c94a;background:#fffbea;color:#7a5b00}
+.rs-tool.vid{border-color:#f3b4b4;color:#c62828}
+.rs-tool.go{background:var(--green);border-color:var(--green);color:#fff}
+.rs-foot{text-align:center;margin-top:16px}
+.rs-foot .rs-tool{padding:9px 36px}
+.rs-whobox{background:var(--green-stripe);border-radius:10px;padding:10px 12px;font-size:.92rem;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.rs-modepick{display:grid;gap:8px}
+.rs-modebtn{text-align:left;border:2px solid var(--border);border-radius:12px;padding:11px 13px;background:#fff}
+.rs-modebtn b{display:block;font-size:.94rem}
+.rs-modebtn span{display:block;font-size:.8rem;color:var(--label);margin-top:3px;line-height:1.45}
+.rs-modebtn.on{border-color:var(--green);background:var(--green-stripe)}
+.rs-who{font-size:.78rem;color:var(--label);display:inline-flex;align-items:center;gap:6px}
+.rs-who button{border:1px solid var(--border);border-radius:7px;padding:3px 8px;font-size:.74rem;background:#fff;font-weight:700}
+.rs-dateline{display:flex;align-items:center;gap:8px;background:var(--green);color:#fff;border-radius:11px;padding:9px 13px;margin-bottom:10px}
+.rs-dateline .dl-lbl{font-size:.74rem;opacity:.85}
+.rs-dateline .dl-date{font-weight:800;font-size:1.02rem}
+.rs-dateline .dl-day{font-size:.8rem;background:rgba(255,255,255,.2);border-radius:20px;padding:2px 9px}
+.rs-prog{background:#fff;border:1px solid var(--border);border-radius:12px;padding:10px 12px;margin-bottom:10px;font-size:.82rem}
+.rs-prog .pg-hd{display:flex;align-items:center;gap:6px;font-weight:700;margin-bottom:4px}
+.rs-prog .pg-next{margin-left:auto;background:var(--green-light);color:var(--green);border-radius:20px;padding:2px 9px;font-size:.74rem}
+.rs-prog .pg-empty{color:#8b92a0}
+.rs-pg{display:flex;align-items:center;gap:6px;flex-wrap:wrap;width:100%;text-align:left;padding:6px 4px;border-top:1px solid #eceef2;font-size:.82rem}
+.rs-pg.cur{background:#fffbea;border-radius:8px}
+.rs-pg .g{font-weight:800;min-width:44px}
+.rs-pg .sc{font-weight:800}
+.rs-pg .wait{color:#b95a1c}
+.rs-pg .now{color:#7a5b00;font-size:.74rem;font-weight:700}
+.rs-pg .who{margin-left:auto;color:#8b92a0;font-size:.72rem}
+.rs-chip{display:inline-block;padding:2px 9px;border-radius:20px;font-size:.76rem;font-weight:800;border:1px solid rgba(0,0,0,.18)}
+.rs-warn{background:#fff8e6;border:1px solid #f1d58d;color:#7a5b00;border-radius:10px;padding:9px 11px;font-size:.82rem;margin-top:10px;line-height:1.5}
+.rs-card{border:1.5px solid var(--border);border-radius:12px;padding:10px;margin-top:10px;background:#fff}
+.rs-card h5{display:flex;align-items:center;gap:6px;font-size:.86rem;margin-bottom:8px;flex-wrap:wrap}
+.rs-card h5 .cnt{font-weight:600;color:var(--label);font-size:.8rem;margin-right:auto}
+.rs-mini{border:1.5px solid var(--green);color:var(--green);border-radius:8px;padding:4px 9px;font-size:.76rem;font-weight:700;background:#fff}
+.rs-mini.del{border-color:var(--error);color:var(--error)}
+.rs-plist{display:flex;flex-wrap:wrap;gap:6px}
+.rs-pchip{display:inline-flex;align-items:center;gap:5px;background:var(--green-stripe);border:1px solid #d5deea;border-radius:9px;padding:5px 5px 5px 8px;font-size:.84rem;font-weight:600}
+.rs-pchip.guest{background:#fdf0e6;border-color:#f1d2b5}
+.rs-pchip button{width:22px;height:22px;border-radius:50%;background:rgba(0,0,0,.08);font-size:.7rem;line-height:1}
+.pos{display:inline-block;min-width:16px;text-align:center;font-size:.66rem;font-weight:800;color:#fff;background:#7b8391;border-radius:4px;padding:1px 3px}
+.rs-empty{color:#8b92a0;font-size:.82rem}
+.rs-g{display:inline-block;margin-left:4px;font-size:.62rem;font-weight:800;color:#b95a1c;background:#fdf0e6;border-radius:4px;padding:0 4px}
+.rs-sw{display:flex;gap:7px;flex-wrap:wrap;align-items:center}
+.rs-swb{width:32px;height:32px;border-radius:50%;border:2px solid #cdd1d8}
+.rs-swb.on{box-shadow:0 0 0 3px var(--green)}
+.rs-colorin{width:38px;height:32px;padding:0;border:1px solid #ddd;border-radius:6px;background:none}
+.rs-inline{display:flex;align-items:center;gap:10px}
+.rs-inline .muted{font-size:.78rem;line-height:1.45}
+.rs-resume{background:var(--green-stripe);border-radius:10px;padding:10px 12px;font-size:.86rem;line-height:1.7;margin-top:10px}
+
+/* 기록지 */
+.rs-toolbar{background:var(--beige);padding-bottom:6px}
+body:not(.rot) #full.sheet .rs-toolbar{position:sticky;top:0;z-index:5;padding-top:calc(var(--safe-top) + 8px);margin-top:calc(-1 * (var(--safe-top) + 12px))}
+.rs-toolbar .rs-hd{margin-bottom:6px}
+.rs-score{display:flex;align-items:stretch;gap:6px;margin-bottom:6px}
+.rs-score .sc{flex:1;display:flex;align-items:center;justify-content:center;gap:10px;border-radius:12px;padding:7px 10px;border:2px solid rgba(0,0,0,.2);position:relative;min-width:0}
+.rs-score .sc.off{opacity:.55}
+.rs-score .sc.on{box-shadow:0 0 0 3px #ffd43b}
+.rs-score .sc-t{font-weight:800;font-size:.86rem}
+.rs-score .sc-n{font-weight:800;font-size:1.6rem;line-height:1}
+.rs-score .sc-e{position:absolute;right:7px;top:4px;font-size:.7rem}
+.rs-score .sc-vs{align-self:center;font-size:.7rem;font-weight:800;color:var(--label)}
+.rs-row{display:flex;gap:6px;margin-bottom:6px}
+.rs-row>*{flex:1}
+.rs-mbtn{padding:9px 0;border-radius:9px;border:2px solid var(--border);background:#fff;font-weight:800;font-size:.86rem}
+.rs-mbtn.on{background:var(--green);border-color:var(--green);color:#fff}
+.rs-mbtn.minus.on{background:var(--error);border-color:var(--error)}
+.rs-toolbar.minus{box-shadow:inset 0 -3px 0 var(--error)}
+.rs-tblwrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:10px;border:1px solid var(--border);background:#fff}
+.rs-tbl{border-collapse:separate;border-spacing:0;white-space:nowrap;font-size:.86rem}
+.rs-tbl th{padding:4px 6px;font-size:.72rem;font-weight:800;text-align:center;min-width:44px}
+.rs-tbl th.ko{font-size:.6rem;font-weight:600;line-height:1.2;opacity:.9;padding-top:0}
+.rs-tbl .rs-name{position:sticky;left:0;z-index:1;text-align:left;min-width:76px;max-width:104px;background:#fff;border-right:1px solid var(--border)}
+.rs-tbl td{height:42px;text-align:center;border-top:1px solid #eee;border-left:1px solid #eef0f3;font-weight:700}
+.rs-tbl td.rs-name{padding:0}
+.rs-nbtn{display:flex;align-items:center;width:100%;height:42px;padding:0 7px;font-weight:700;font-size:.84rem;text-align:left}
+.rs-nbtn .nm{overflow:hidden;text-overflow:ellipsis}
+.rs-tbl td.rs-cell{cursor:pointer;font-size:.98rem;user-select:none;-webkit-user-select:none}
+.rs-tbl td.rs-cell.zero{color:#c3c8d1;font-weight:500}
+.rs-tbl td.rs-cell:active{background:var(--green-light)}
+.rs-tbl td.rs-cell.hit{animation:rshit .36s}
+.rs-minus .rs-tbl td.rs-cell{background:#fff5f4}
+.rs-minus .rs-tbl td.rs-cell.hit{animation:rshitm .36s}
+@keyframes rshit{from{background:#8fd694}}
+@keyframes rshitm{from{background:#f3a59b}}
+.rs-tbl td.rs-ro{background:#f5f6f8;color:#646b78;font-size:.8rem}
+.rs-tbl td.rs-pts{background:#eceef2;color:var(--text);font-weight:800;font-size:.98rem}
+.rs-tbl tfoot td{background:#eceef2;font-weight:800;border-top:2px solid var(--border)}
+.rs-tbl tfoot td.rs-name{padding:0 7px;background:#eceef2}
+.rs-tbl td.rs-none{padding:16px;color:#aaa;font-size:.85rem;font-weight:500}
+/* 가로 보기: 툴바를 한 줄로 줄이고 표를 촘촘하게 */
+body.rot .rs-toolbar{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+body.rot .rs-toolbar .rs-hd{flex:1 1 100%;margin:0}
+body.rot .rs-toolbar .rs-hd h3{font-size:.9rem}
+body.rot .rs-row{display:contents}
+body.rot .rs-row>*{flex:0 0 auto;padding:6px 10px}
+body.rot .rs-score{flex:1 1 200px;margin:0}
+body.rot .rs-score .sc{padding:3px 8px}
+body.rot .rs-score .sc-n{font-size:1.2rem}
+body.rot .rs-tbl td,body.rot .rs-nbtn{height:34px}
+body.rot.rot-sm .rs-tbl td,body.rot.rot-sm .rs-nbtn{height:30px}
+body.rot .rs-tbl th{min-width:40px}
+
+/* 달력 */
+.ps-calhd{display:flex;align-items:center;justify-content:space-between;margin:6px 0 8px;font-weight:800}
+.ps-calhd button{width:38px;height:34px;border-radius:9px;border:1.5px solid var(--border);font-size:1.1rem;background:#fff}
+.ps-cwd,.ps-cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center}
+.ps-cwd{font-size:.72rem;color:var(--label);margin-bottom:4px}
+.ps-cd{padding:9px 0;border-radius:9px;font-size:.88rem;color:#bbb;background:#f5f6f8;position:relative}
+.ps-cd.empty{background:none}
+.ps-cd.has{background:var(--green);color:#fff;font-weight:800;cursor:pointer}
+.ps-cd[data-act]{cursor:pointer;color:var(--text)}
+.ps-cd.has[data-act]{color:#fff}
+.ps-cd.off{opacity:.35}
+.ps-cd.sel{box-shadow:0 0 0 3px #ffd43b}
+.ps-cd.vid::after{content:'▶';position:absolute;right:3px;bottom:1px;font-size:.5rem;color:#ffd43b}
+/* 영상 링크 · 날짜별 보기 */
+.ps-yt{color:#c62828;font-weight:700;text-decoration:none;font-size:.9em}
+.ps-ytg{margin-left:auto;color:inherit;font-weight:700;font-size:.78rem;text-decoration:none;border:1px solid currentColor;border-radius:20px;padding:1px 9px}
+.ps-gtitle{display:flex;align-items:center;gap:8px;border-radius:10px 10px 0 0;padding:6px 11px;font-weight:800;font-size:.84rem;margin-top:14px;border:1px solid rgba(0,0,0,.18)}
+.ps-gtitle .who{margin-left:auto;font-weight:600;font-size:.74rem;opacity:.85}
+.ps-gtitle+.ps-wrap{margin-top:0}
+.ps-chiprow{display:flex;flex-wrap:wrap;gap:5px;margin:6px 0 8px}
+.ps-chip{background:var(--green-light);color:var(--green);border-radius:20px;padding:3px 10px;font-size:.78rem;font-weight:600}
+.game .sc{font-size:.9rem;font-weight:500}
+.game .sc b{font-size:1rem}
+
+/* =========================================================
+ *  디자인 정리: 선 아이콘 · 강조색 · 팀 로고
+ * ========================================================= */
+.i{width:1.15em;height:1.15em;vertical-align:-.2em;flex:none;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;display:inline-block}
+.card h2>.i,.rs-hd h3>.i,.modal h3>.i{color:var(--accent);width:1.2em;height:1.2em}
+.bottom-nav .ic{display:block;line-height:1}
+.bottom-nav .ic .i{width:23px;height:23px}
+.bottom-nav button.on{color:var(--accent)}
+.tab.on{border-bottom-color:var(--accent)}
+.seg button .i,.btn .i,.rs-tool .i{width:1.1em;height:1.1em}
+.tag.yes{background:#2f9e44}
+.ps-yt .i,.ps-ytg .i{width:.9em;height:.9em;vertical-align:-.1em}
+.ev-lb .i{width:1em;height:1em}
+.btn.google{background:#fff;color:#1f1f1f;border:1.5px solid var(--border);margin-top:8px}
+.chip.blue{background:#e7f0ff;color:#1c5fbf}
+/* 팀 로고 */
+.av img{width:100%;height:100%;object-fit:cover;border-radius:inherit;display:block}
+.av.lg{width:64px;height:64px;border-radius:16px;background:var(--green-light);color:var(--green);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:1.5rem;flex:none;overflow:hidden}
+.av.sm{width:34px;height:34px;border-radius:10px;background:var(--green-light);color:var(--green);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.86rem;flex:none;overflow:hidden}
+.team-card .av{overflow:hidden}
+.av .muted{font-size:.7rem;font-weight:500}
+.logo-row{gap:10px}
+/* 농구하는 날: 하루씩 상자로 나눔 (머리줄 = 번호 · 요일 · 이번 주 날짜 · 지우기) */
+[data-day-row] select.in{flex:0 0 80px!important;padding-left:8px;padding-right:4px}
+[data-day-row] input[type=time]{padding-left:8px;padding-right:6px}
+.day-box{border:1.5px solid var(--border);border-left:5px solid var(--accent);border-radius:12px;padding:10px 12px 12px;margin-top:14px;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.05)}
+.day-box:first-child{margin-top:4px}
+.day-hd{display:flex;align-items:center;gap:8px;margin-bottom:9px;padding-bottom:8px;border-bottom:1px dashed var(--border)}
+.day-no{width:22px;height:22px;border-radius:50%;background:var(--green);color:#fff;font-size:.74rem;font-weight:800;display:flex;align-items:center;justify-content:center;flex:none}
+.day-when{flex:1;min-width:0;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.day-when b{font-size:.98rem}
+.day-date{font-size:.76rem;color:var(--label);font-weight:600}
+.day-hd .btn.sm{padding:5px 9px;font-size:.74rem}
+
+/* 가장 가까운 농구하는 날: 크기와 색으로 부각 */
+.summary .s-item.next{flex:1 1 100%;display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--green);color:#fff;border-left:6px solid var(--accent);border-radius:12px;padding:11px 14px;font-size:.95rem;font-weight:700;box-shadow:0 3px 10px rgba(0,0,0,.12)}
+.s-item.next .s-day{display:flex;flex-direction:column;flex:1;min-width:0}
+.s-item.next .s-day small{font-size:.74rem;font-weight:500;opacity:.85;margin-top:1px}
+.s-item.next .s-cnt{font-size:.9rem;white-space:nowrap}
+.summary .s-item.next .s-cnt b{font-size:1.9rem;line-height:1;margin-right:2px}
+.s-badge{display:inline-block;background:var(--accent);color:#fff;font-size:.68rem;font-weight:800;border-radius:20px;padding:2px 9px;flex:none}
+.s-item.next .s-badge{flex-basis:100%;max-width:max-content}
+.st-sec.next{background:var(--green-stripe);border:2px solid var(--accent);border-radius:12px;padding:12px;margin:2px 0 10px}
+.st-sec.next h3{font-size:1.06rem;margin:6px 0 8px}
+.st-sec.next .st-line{font-size:.9rem}
+.st-sec.next+.st-sec{border-top:none}
+.st-sec.past{opacity:.55}
+
+/* 팀원 정렬 */
+.mem-sort{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.mem-sort::-webkit-scrollbar{display:none}
+.mem-sort button{flex:none;padding:6px 11px;border-radius:20px;border:1.5px solid var(--border);background:#fff;font-size:.78rem;font-weight:700;color:var(--label)}
+.mem-sort button.on{background:var(--green);border-color:var(--green);color:#fff}
+.mem-how{font-size:.72rem;color:var(--label);margin:6px 0 2px}
+.mem-grp{font-size:.76rem;font-weight:800;color:var(--green);background:var(--green-stripe);border-radius:7px;padding:4px 9px;margin-top:10px}
+.mem-grp span{font-weight:600;color:var(--label)}
+
+/* 팀 편성: 참가자 접기·펼치기 (G-F-C 줄) */
+.tg-pool{border:1.5px solid var(--border);border-radius:12px;background:#fff}
+.tg-pool summary{cursor:pointer;display:flex;align-items:center;gap:10px;padding:10px 12px;font-size:.9rem;list-style:none}
+.tg-pool summary::-webkit-details-marker{display:none}
+.tg-pool summary::after{content:'펼치기 ▾';margin-left:auto;font-size:.76rem;font-weight:700;color:var(--green)}
+.tg-pool[open] summary::after{content:'접기 ▴'}
+.tg-pool[open] summary{border-bottom:1px solid #eceef2}
+.tg-cnt{font-size:.8rem;color:var(--label);font-weight:600}
+.tg-off{font-size:.74rem;color:var(--error);font-weight:700}
+.tg-pool>.tg-pos-row,.tg-pool>.empty{margin:0 12px}
+.tg-pos-row{padding:9px 0;border-bottom:1px dashed #eceef2}
+.tg-pos-row:last-child{border-bottom:none}
+/* 이름 옆 포지션 글자 G·F·C (색으로도 구분) */
+.pl-pos{display:inline-block;min-width:17px;text-align:center;font-size:.68rem!important;font-weight:800!important;opacity:1!important;margin-right:5px;padding:1px 4px;border-radius:5px;color:#fff;background:#7b8391;line-height:1.3}
+.pl-pos.pos-G{background:#2f6fb5}.pl-pos.pos-F{background:#2f9e44}.pl-pos.pos-C{background:#c2410c}
+.pick button:not(.on) .pl-pos{opacity:.55!important}
+
+/* 팀 색상 고르기 */
+.theme-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px}
+.theme-opt{display:flex;align-items:center;gap:8px;padding:8px 10px;border:2px solid var(--border);border-radius:10px;background:#fff;font-size:.8rem;font-weight:700;text-align:left}
+.theme-opt.on{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent) inset}
+.th-sw{display:flex;flex:none;border-radius:6px;overflow:hidden;border:1px solid rgba(0,0,0,.15)}
+.th-sw i{display:block;width:16px;height:22px}
+.th-custom{display:flex;gap:16px;flex-wrap:wrap;font-size:.84rem;font-weight:700;color:var(--label)}
+.th-custom label{display:flex;align-items:center;gap:8px}
+.th-custom input[type=color]{width:44px;height:34px;padding:0;border:1px solid var(--border);border-radius:8px;background:none}
+
+/* 상단 바 오른쪽 위 팀 로고 */
+.ab-logo{width:38px;height:38px;border-radius:10px;overflow:hidden;flex:none;background:#fff;box-shadow:0 0 0 2px rgba(255,255,255,.5)}
+.ab-logo img{width:100%;height:100%;object-fit:cover;display:block}
+
+/* 경기 목록: 날짜별 접기 */
+.gday{border:1.5px solid var(--border);border-radius:11px;margin-top:8px;background:#fff}
+.gday summary{cursor:pointer;display:flex;align-items:center;gap:8px;padding:10px 12px;list-style:none;font-size:.9rem}
+.gday summary::-webkit-details-marker{display:none}
+.gday summary::before{content:'▸';color:var(--label);font-size:.8rem;transition:.15s}
+.gday[open] summary::before{transform:rotate(90deg)}
+.gday[open] summary{border-bottom:1px solid #eceef2;background:var(--green-stripe);border-radius:10px 10px 0 0}
+.gd-date{font-weight:800}
+.gd-n{font-size:.78rem;color:var(--label);font-weight:600}
+.gd-list{padding:0 12px}
+
+/* 로그인 · 새로 가입 */
+.lg-hd{font-size:1rem;margin-bottom:12px;display:flex;align-items:center;gap:6px}
+.lg-hd .i{color:var(--accent)}
+.lg-opt{margin-top:14px;border:1px dashed var(--border);border-radius:11px;padding:4px 12px 12px;background:var(--field)}
+.lg-opt-hd{font-size:.78rem;font-weight:800;color:var(--green);margin-top:8px}
+.lg-opt-hd span{font-weight:500;color:var(--label)}
+
+/* 로딩: 농구공이 튀면서 돈다 (첫 화면 #splash · 서버와 주고받을 때 #busy) */
+#splash{position:fixed;inset:0;z-index:2500;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--beige);transition:opacity .35s ease}
+#splash.gone{opacity:0;pointer-events:none;visibility:hidden}
+.bb-wrap{width:72px;height:72px;margin-bottom:9px;animation:bbUp .6s cubic-bezier(.33,0,.66,1) infinite alternate}
+.bb{width:100%;height:100%;display:block;animation:bbSpin 1.2s linear infinite}
+.bb-sh{width:50px;height:9px;border-radius:50%;background:#1d2b45;opacity:.45;animation:bbSh .6s cubic-bezier(.33,0,.66,1) infinite alternate}
+.bb-tx{margin-top:20px;font-size:.86rem;font-weight:600;color:#1d2b45}
+@keyframes bbSpin{to{transform:rotate(360deg)}}
+@keyframes bbUp{from{transform:translateY(4px)}to{transform:translateY(-24px)}}
+@keyframes bbSh{from{transform:scaleX(1);opacity:.45}to{transform:scaleX(.6);opacity:.16}}
+#busy{position:fixed;left:50%;top:42%;z-index:98;width:64px;height:64px;margin:-32px 0 0 -32px;border-radius:50%;background:rgba(255,255,255,.92);box-shadow:0 4px 18px rgba(0,0,0,.16);display:flex;align-items:center;justify-content:center;pointer-events:none;opacity:0;visibility:hidden}
+#busy svg{width:40px;height:40px;animation:bbSpin 1s linear infinite}
+body.net-busy #busy{animation:busyIn .2s .45s forwards} /* 0.45초 넘게 걸릴 때만 보인다 (빠른 저장은 깜빡이지 않게) */
+@keyframes busyIn{from{opacity:0;visibility:visible}to{opacity:1;visibility:visible}}
+@media(prefers-reduced-motion:reduce){.bb-wrap,.bb,.bb-sh,#busy svg{animation:none}}
+
+/* ===== 0.7.0 ===== */
+/* 선수 기록 화면: 선수 기록 / 선수 지표 버튼 */
+.ps-seg{display:flex;gap:6px;margin:0 0 10px}
+.ps-seg button{flex:1;display:inline-flex;align-items:center;justify-content:center;gap:5px;padding:10px 8px;border-radius:10px;border:1.5px solid var(--border);background:#fff;font-size:.9rem;font-weight:700;color:var(--text)}
+.ps-seg button .i{width:1.1em;height:1.1em}
+.ps-seg button.on{background:var(--green);border-color:var(--green);color:#fff}
+/* 머리줄 고정: 표 상자 안에서 위아래·좌우로 움직이고, 머리줄(항목 이름)과 선수 이름 칸은 늘 보인다 */
+.ps-tbl thead{position:sticky;top:0;z-index:3}
+.ps-fix{overflow:auto;max-height:calc(100vh - var(--safe-top) - var(--safe-bottom) - 150px);max-height:calc(100dvh - var(--safe-top) - var(--safe-bottom) - 150px);overscroll-behavior:contain;border-radius:8px;box-shadow:0 0 0 1px #e6e8ec}
+body.rot .ps-fix{max-height:calc(var(--rot-h) - 110px)}
+.ps-fix .ps-tbl{min-width:100%}
+/* 로그인: 아이디 안내 · 팀 링크로 들어온 경우 */
+.lg-hint{font-weight:500;color:var(--label);font-size:.74rem;margin-left:4px}
+.go-note{display:flex;gap:8px;align-items:flex-start;text-align:left;margin:0 auto 12px;max-width:380px;width:100%;padding:10px 12px;border-radius:11px;background:#fff7ed;border:1px solid #fed7aa;color:#7c2d12;font-size:.84rem;line-height:1.45}
+.go-note .i{flex:none;width:1.2em;height:1.2em;margin-top:1px;color:var(--accent)}
+/* 팀 링크 카드 */
+.link-box{margin-top:8px;padding:9px 11px;border-radius:9px;background:var(--field);border:1px dashed var(--border);font-size:.8rem;word-break:break-all;color:var(--text);user-select:all}
