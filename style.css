@@ -14,7 +14,7 @@ button{cursor:pointer;border:none;background:none}
 #app{min-height:100%;display:flex;flex-direction:column}
 
 /* 상단 바 */
-.appbar{position:sticky;top:0;z-index:20;background:var(--green);color:#fff;padding:calc(var(--safe-top) + 10px) 16px 10px;display:flex;align-items:center;gap:10px;box-shadow:0 2px 8px rgba(0,0,0,.12)}
+.appbar{position:sticky;top:0;z-index:20;background:var(--bar,var(--green));color:#fff;padding:calc(var(--safe-top) + 10px) 16px 10px;display:flex;align-items:center;gap:10px;box-shadow:0 2px 8px rgba(0,0,0,.12)}
 .appbar h1{font-size:1.05rem;font-weight:700;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .appbar .sub{display:block;font-size:.72rem;font-weight:500;opacity:.8;margin-top:1px}
 .appbar .ab-btn{color:#fff;font-size:.8rem;font-weight:600;border:1.5px solid rgba(255,255,255,.55);border-radius:9px;padding:6px 10px;white-space:nowrap}
@@ -434,6 +434,21 @@ body.rot .rs-tbl th{min-width:40px}
 .team-card .av{overflow:hidden}
 .av .muted{font-size:.7rem;font-weight:500}
 .logo-row{gap:10px}
+.logo-btns{display:flex;flex-wrap:wrap;gap:6px;flex:1;min-width:0}
+.logo-btns [hidden]{display:none}
+/* 로고 자르기 창 */
+.lc-stage{position:relative;width:280px;height:280px;margin:12px auto 0;overflow:hidden;border-radius:12px;background:#fff;touch-action:none;cursor:grab;user-select:none;
+  box-shadow:0 0 0 1px var(--border)}
+.lc-stage.clear{background:repeating-conic-gradient(#e9ecf0 0 25%,#fff 0 50%) 0 0/16px 16px}
+.lc-stage img{position:absolute;max-width:none;pointer-events:none}
+/* 네모 칸(220px) 밖은 어둡게 — 잘려 나갈 부분 */
+.lc-frame{position:absolute;left:30px;top:30px;width:220px;height:220px;border:2px dashed #fff;border-radius:12px;pointer-events:none;box-shadow:0 0 0 400px rgba(20,26,38,.45)}
+.lc-zoom{display:flex;align-items:center;gap:8px;margin-top:12px;font-size:.74rem;color:var(--label);font-weight:600}
+.lc-zoom input{flex:1;accent-color:var(--accent)}
+.lc-opts{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:10px}
+.lc-bg{margin-left:auto;display:flex;align-items:center;gap:4px;font-size:.76rem;color:var(--label);font-weight:600}
+.lc-bg button{border:1.5px solid var(--border);border-radius:8px;padding:4px 9px;font-size:.76rem;font-weight:700;background:#fff}
+.lc-bg button.on{border-color:var(--green);background:var(--green);color:#fff}
 /* 농구하는 날: 하루씩 상자로 나눔 (머리줄 = 번호 · 요일 · 이번 주 날짜 · 지우기) */
 [data-day-row] select.in{flex:0 0 80px!important;padding-left:8px;padding-right:4px}
 [data-day-row] input[type=time]{padding-left:8px;padding-right:6px}
@@ -508,9 +523,11 @@ body.rot .rs-tbl th{min-width:40px}
 .ab-logo.no-border{box-shadow:none;border-radius:0;background:transparent}
 /* 상단 바를 로고 배경색과 하나로 (흰 로고면 흰 상단 바) */
 .appbar.blend{box-shadow:0 1px 0 rgba(0,0,0,.06)}
-.appbar.blend.light{color:var(--text)}
-.appbar.blend.light .ab-btn{color:var(--text);border-color:rgba(0,0,0,.25)}
-.appbar.blend.light .sub{color:var(--label);opacity:1}
+.appbar.blend.light,.bar-light .appbar:not(.blend){color:var(--text)}
+.appbar.blend.light .ab-btn,.bar-light .appbar:not(.blend) .ab-btn{color:var(--text);border-color:rgba(0,0,0,.25)}
+.appbar.blend.light .sub,.bar-light .appbar:not(.blend) .sub{color:var(--label);opacity:1}
+.bar-light .appbar:not(.blend){box-shadow:0 1px 0 rgba(0,0,0,.08)}
+.bar-light .appbar:not(.blend) .ab-logo:not(.no-border),.appbar.blend.light .ab-logo:not(.no-border){box-shadow:0 0 0 1.5px rgba(0,0,0,.12)}
 /* 로고 설정 */
 .logo-opts{display:grid;grid-template-columns:1fr 1fr;gap:4px 10px}
 .logo-opts label.f{margin-top:8px}
@@ -568,3 +585,112 @@ body.rot .ps-fix{max-height:calc(var(--rot-h) - 110px)}
 /* 팀 링크 카드 */
 .link-box{margin-top:8px;padding:9px 11px;border-radius:9px;background:var(--field);border:1px dashed var(--border);font-size:.8rem;word-break:break-all;color:var(--text);user-select:all}
 .mem.rest .chip{background:#fff}
+
+/* ===== 참석 탭 (11-26 개편: 공지=게시판 · 참석 인원 · 한마디=카톡 · 참석 체크 접힘) ===== */
+.att .card{margin-bottom:7px}
+.att .fold-more{margin-left:auto;font-size:.72rem;font-weight:700;display:inline-flex;align-items:center;gap:3px;white-space:nowrap}
+
+/* 1. 공지사항 = 게시판 (5줄 넘으면 접고 '더보기') */
+.att .nb{padding:0;overflow:hidden;cursor:pointer}
+.att .nb-hd{display:flex;align-items:center;gap:7px;padding:8px 14px;background:var(--green);color:#fff;font-weight:800;font-size:.92rem}
+.att .nb-hd .i{color:var(--accent);width:1.15em;height:1.15em}
+.att .nb-hd .fold-more{color:rgba(255,255,255,.85)}
+.att .nb-body{position:relative;padding:3px 14px 5px 28px;background:#fffdf6;
+background-image:repeating-linear-gradient(180deg,transparent 0 21px,#efe7d3 21px 22px);background-position:0 3px;
+white-space:pre-wrap;line-height:22px;font-size:.84rem;color:#2b2f38}
+.att .nb-body::before{content:'';position:absolute;left:17px;top:0;bottom:0;width:2px;background:#f4b9a3}
+.att .nb.clamp .nb-body{max-height:118px;overflow:hidden} /* 5줄 */
+.att .nb.empty .nb-hd .fold-more{font-weight:600}
+.att .nb.clamp .nb-body::after{content:'';position:absolute;left:0;right:0;bottom:0;height:12px;background:linear-gradient(rgba(255,253,246,0),#fffdf6)}
+.att .nb-tag{display:inline-block;background:var(--accent);color:#fff;font-size:.66rem;font-weight:800;border-radius:5px;padding:0 6px;margin-right:6px;line-height:1.6;vertical-align:1px}
+
+/* 2. 참석 인원 = 간결 + 가장 눈에 띄게 */
+.att .cnt{border:2px solid var(--green);padding:10px 11px}
+.att .cnt-hd{display:flex;align-items:center;gap:6px;margin-bottom:8px}
+.att .cnt-hd h2{margin:0;font-size:.94rem}
+.att .cnt-hd .btn{margin-left:auto;padding:5px 10px}
+.att .cnt-hd .btn:disabled{opacity:1;background:#e6e9ee;color:#9aa1ad;border-color:#e6e9ee}
+.att .cnt-row{display:flex;gap:7px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.att .ct{position:relative;flex:1 0 76px;border-radius:12px;background:var(--green-light);color:var(--green);padding:5px 4px 5px;text-align:center;border:2px solid transparent;transition:.15s}
+.att .ct .w{font-size:.76rem;font-weight:800}
+.att .ct .w small{font-weight:600;opacity:.7;margin-left:3px}
+.att .ct .n{font-size:1.65rem;font-weight:900;line-height:1.05;margin-top:2px;letter-spacing:-1px}
+.att .ct .n span{font-size:.76rem;font-weight:700;margin-left:1px;letter-spacing:0}
+.att .ct .tm{font-size:.66rem;font-weight:600;opacity:.75}
+.att .ct.next{background:var(--accent);color:#fff}
+.att .ct.past{background:#eef0f3;color:#9aa1ad}
+.att .ct.on{border-color:var(--green);box-shadow:0 3px 10px rgba(29,43,69,.18)}
+.att .cnt-hint{font-size:.7rem;font-weight:500;color:var(--label);margin-left:4px}
+.att .cnt-who{margin-top:10px;background:var(--green-stripe);border-radius:11px;padding:10px 11px}
+.att .cnt-who .t{font-size:.78rem;font-weight:800;color:var(--green);margin-bottom:7px}
+.att .cnt-who .t span{font-weight:600;color:var(--label)}
+.att .who-list{display:flex;flex-wrap:wrap;gap:5px}
+.att .who{background:#fff;border:1px solid #d5deea;border-radius:20px;padding:2px 9px;font-size:.78rem;font-weight:600}
+.att .who.g{border-style:dashed;color:var(--label)}
+
+/* 3. 한마디 = 카카오톡 채팅 (접힘: 최근 5개 · 펼침: 전부 + 스크롤 + 입력창) */
+.att .kk-card{padding:0;overflow:hidden}
+.att .kk-hd{display:flex;align-items:center;gap:6px;padding:8px 14px;font-weight:800;font-size:.94rem;cursor:pointer}
+.att .kk-hd .i{color:var(--accent);width:1.15em;height:1.15em}
+.att .kk-hd small{font-weight:500;font-size:.7rem;color:var(--label)}
+.att .kk-hd .fold-more{color:var(--green)}
+.att .kk{background:#b2c7da;padding:10px 10px 2px;cursor:pointer}
+.att .kk-card.open .kk{max-height:300px;overflow-y:auto;cursor:auto}
+.att .kk-day{text-align:center;margin:0 0 9px}
+.att .kk-day span{background:rgba(0,0,0,.14);color:#fff;font-size:.66rem;border-radius:20px;padding:2px 9px}
+.att .kk-m{display:flex;gap:7px;margin-bottom:8px;align-items:flex-start}
+.att .kk-av{width:32px;height:32px;border-radius:12px;background:#fff;color:var(--green);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.76rem;flex:none}
+.att .kk-c{min-width:0}
+.att .kk-nm{font-size:.7rem;color:#3a4657;margin:0 0 3px}
+.att .kk-line{display:flex;align-items:flex-end;gap:5px}
+.att .kk-b{background:#fff;border-radius:4px 14px 14px 14px;padding:6px 10px;font-size:.84rem;line-height:1.4;max-width:220px;word-break:break-word;color:#191919}
+.att .kk-card:not(.open) .kk-b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis} /* 접힘: 한 줄만 */
+/* 접힘: 이름과 말풍선을 한 줄로 (높이 줄이기) */
+.att .kk-card:not(.open) .kk-m{align-items:center;margin-bottom:3px}
+.att .kk-card:not(.open) .kk-av{width:24px;height:24px;border-radius:9px;font-size:.66rem}
+.att .kk-card:not(.open) .kk-b{padding:2px 9px;font-size:.8rem}
+.att .kk-card:not(.open) .kk-nm{font-size:.68rem}
+.att .kk-card:not(.open) .kk-c{display:flex;align-items:center;gap:6px;flex:1}
+.att .kk-card:not(.open) .kk-nm{margin:0;white-space:nowrap;font-weight:700}
+.att .kk-card:not(.open) .kk-line{min-width:0}
+.att .kk-card:not(.open) .kk-b{max-width:100%}
+.att .kk-card:not(.open) .kk{padding:7px 10px 3px}
+.att .kk-empty{margin-left:auto;font-size:.74rem;font-weight:700;color:var(--green);border:1.5px solid var(--green);border-radius:8px;padding:3px 9px;background:#fff}
+.att .kk-hd .none{font-weight:500;font-size:.76rem;color:var(--label)}
+.att .kk-tm{font-size:.62rem;color:#4b5a70;white-space:nowrap}
+.att .kk-m.me{justify-content:flex-end}
+.att .kk-m.me .kk-line{flex-direction:row-reverse}
+.att .kk-m.me .kk-b{background:#fee500;border-radius:14px 4px 14px 14px}
+.att .kk-more{display:block;width:100%;background:#a5bcd1;color:#2b3a4f;font-size:.74rem;font-weight:700;padding:5px 0;text-align:center}
+.att .kk-in{display:flex;gap:6px;padding:8px 10px;background:#fff;border-top:1px solid #e3e6eb}
+.att .kk-in input{flex:1;min-width:0;border:none;background:#f3f4f6;border-radius:18px;padding:8px 13px;font-size:.84rem;outline:none}
+.att .kk-in button{background:#fee500;color:#3c1e1e;font-weight:800;font-size:.8rem;border-radius:18px;padding:0 14px}
+
+/* 4. 참석 체크 = 접힘 */
+.att .ckf{padding:0;overflow:hidden}
+.att .ckf-hd{display:flex;align-items:center;gap:10px;width:100%;padding:8px 14px;text-align:left}
+.att .ckf-ic{width:32px;height:32px;border-radius:10px;background:var(--green);color:#fff;display:flex;align-items:center;justify-content:center;flex:none}
+.att .ckf-ic .i{width:1.15em;height:1.15em}
+.att .ckf-t{font-weight:800;font-size:.94rem}
+.att .ckf-s{font-size:.74rem;margin-top:1px;color:var(--label)}
+.att .ckf-s b{color:var(--green)}
+.att .ckf-s.todo b{color:var(--error)}
+.att .ckf-ar{margin-left:auto;color:var(--label);font-size:.9rem;transition:.2s}
+.att .ckf.open .ckf-ar{transform:rotate(180deg)}
+.att .ckf.todo{border:2px solid var(--accent)}
+.att .ckf.todo .ckf-ic{background:var(--accent)}
+.att .ckf-body{display:none;padding:0 14px 14px;border-top:1px solid #eceef2}
+.att .ckf.open .ckf-body{display:block}
+.att .ckf-body .me-card{margin-top:12px}
+/* 앱에서 더한 것: 버튼 안 span 을 줄로 · 접힌 한마디는 최근 5개만 · 입력창은 펼쳤을 때만 */
+.att .ct{display:block;font:inherit}
+.att .ct>span{display:block}
+.att .ckf-t,.att .ckf-s{display:block}
+.att .kk-card:not(.open) .kk-m.old,.att .kk-card:not(.open) .kk-day,.att .kk-card:not(.open) .kk-in,.att .kk-card:not(.open) .kk-fold{display:none}
+.att .kk-card.open .kk-more{display:none}
+.att .kk-card.many .kk-hd{cursor:pointer}
+.att .kk-card:not(.many) .kk-hd{cursor:default}
+.att .nb:not([data-act]){cursor:default}
+.att .ct.next .w small{opacity:.85}
+.st-sec.flash{animation:stflash 1.6s ease}
+@keyframes stflash{0%,40%{box-shadow:0 0 0 3px var(--accent)}100%{box-shadow:0 0 0 0 transparent}}

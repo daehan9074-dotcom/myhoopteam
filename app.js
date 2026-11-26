@@ -1,7 +1,7 @@
 /* 나의 농구팀 — 화면 코드 (데이터는 data.js 의 Api 로만 주고받는다) */
 (function () {
   'use strict';
-  const VERSION = '0.7.0';
+  const VERSION = '0.8.0';
   const PRIVACY_URL = 'privacy.html';
   const $ = (s, r) => (r || document).querySelector(s);
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -51,7 +51,8 @@
   /* ---------- 팀 색상 (관리자가 고른 주 색·강조 색으로 앱 색을 바꾼다) ---------- */
   const DEF_THEME = { main: '#1d2b45', accent: '#f26a1b' };
   const THEMES = [['기본 (남색·주황)', '#1d2b45', '#f26a1b'], ['빨강·검정', '#b3202a', '#222222'], ['파랑·하늘', '#1d4f91', '#3fa9f5'], ['초록·노랑', '#1f5f3a', '#e0a800'],
-    ['보라·금색', '#4b2a7a', '#d99a1e'], ['검정·빨강', '#1a1a1a', '#e03131'], ['자주·회색', '#7a1f3d', '#6b7280'], ['청록·주황', '#0f5e63', '#f26a1b']];
+    ['보라·금색', '#4b2a7a', '#d99a1e'], ['검정·빨강', '#1a1a1a', '#e03131'], ['자주·회색', '#7a1f3d', '#6b7280'], ['청록·주황', '#0f5e63', '#f26a1b'],
+    ['흰색·남색', '#ffffff', '#1d2b45'], ['흰색·주황', '#ffffff', '#f26a1b']];
   const hexRgb = (h) => { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
   const rgbHex = (c) => '#' + c.map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('');
   const mixHex = (a, b, t) => { const x = hexRgb(a), y = hexRgb(b); return rgbHex(x.map((v, i) => v + (y[i] - v) * t)); };
@@ -62,16 +63,23 @@
     const key = th ? th.main + th.accent : '';
     if (key === themeNow) return;
     themeNow = key;
-    const st = document.documentElement.style, vars = ['--green', '--green-mid', '--green-light', '--green-stripe', '--accent'];
-    let main = DEF_THEME.main;
+    const root = document.documentElement, st = root.style, vars = ['--green', '--green-mid', '--green-light', '--green-stripe', '--accent', '--bar'];
+    let main = DEF_THEME.main, bar = main;
+    root.classList.remove('bar-light');
     if (!th) vars.forEach((v) => st.removeProperty(v));
     else {
-      main = darkTo(th.main, 0.55);
+      // 상단 바는 고른 주 색 그대로 칠한다 (흰색도 흰색으로). 밝은 바는 글자를 어둡게(.bar-light),
+      // 버튼·표 머리줄처럼 흰 글자가 올라가는 곳은 주 색이 너무 밝으면 강조 색으로 대신 쓴다
+      bar = th.main;
+      const light = lum(th.main) > 0.55;
+      if (light) root.classList.add('bar-light');
+      main = darkTo(light ? th.accent : th.main, 0.55);
+      st.setProperty('--bar', bar);
       st.setProperty('--green', main); st.setProperty('--green-mid', mixHex(main, '#ffffff', 0.14));
       st.setProperty('--green-light', mixHex(main, '#ffffff', 0.89)); st.setProperty('--green-stripe', mixHex(main, '#ffffff', 0.95));
       st.setProperty('--accent', darkTo(th.accent, 0.68));
     }
-    const m = document.querySelector('meta[name=theme-color]'); if (m) m.setAttribute('content', main);
+    const m = document.querySelector('meta[name=theme-color]'); if (m) m.setAttribute('content', bar);
   }
   /* 첫 로딩 화면(농구공) 닫기 */
   function hideSplash() {
@@ -259,8 +267,81 @@
   /* 팀 로고 고르기. 고른 그림은 작게 줄여 S.cache.logo 에 둔다 (undefined = 안 바꿈) */
   function logoField(cur) {
     return '<label class="f">팀 로고</label><div class="row logo-row"><div class="av lg" id="logoPrev">' + (cur ? '<img src="' + esc(cur) + '" alt="">' : '<span class="muted">없음</span>') + '</div>' +
-      '<label class="btn line sm">그림 고르기<input type="file" accept="image/*" id="logoIn" hidden></label><button class="btn gray sm" data-act="logoClear">지우기</button></div>' +
-      '<p class="muted mt8">로고는 팀 화면 <b>상단 바</b>와 팀 찾기 목록·팀 소개에 보입니다.</p>';
+      '<div class="logo-btns"><label class="btn line sm">그림 고르기<input type="file" accept="image/*" id="logoIn" hidden></label>' +
+      '<button class="btn line sm" data-act="logoCrop"' + (cur ? '' : ' hidden') + ' id="logoCropBtn">위치·크기 조정</button><button class="btn gray sm" data-act="logoClear">지우기</button></div></div>' +
+      '<p class="muted mt8">로고는 팀 화면 <b>상단 바</b>와 팀 찾기 목록·팀 소개에 보입니다. 그림을 고르면 잘릴 부분과 크기를 직접 맞출 수 있습니다.</p>';
+  }
+  /* 로고 자르기 창: 그림을 끌어서 위치, 막대(또는 두 손가락·마우스 휠)로 크기. 네모 칸 안이 로고(160px 정사각형)가 된다 */
+  function logoCropper(src) {
+    const img = new Image();
+    img.onload = () => {
+      // 아주 큰 사진은 미리 줄여 둔다 (작게 그릴 때 계단 현상·느림 방지)
+      let pic = img, W = img.naturalWidth, H = img.naturalHeight;
+      if (Math.max(W, H) > 900) { const r = 900 / Math.max(W, H), c0 = document.createElement('canvas'); c0.width = Math.round(W * r); c0.height = Math.round(H * r); c0.getContext('2d').drawImage(img, 0, 0, c0.width, c0.height); pic = c0; W = c0.width; H = c0.height; }
+      const V = 220, SV = 280, fit = Math.min(V / W, V / H), cover = Math.max(V / W, V / H);
+      const sMin = fit * 0.5, sMax = cover * 4;
+      const c = { s: cover, x: 0, y: 0, bg: 'white' }; // x·y = 칸 가운데에서 그림 가운데까지 거리(미리 보기 px)
+      const toV = (s) => Math.round(1000 * Math.log(s / sMin) / Math.log(sMax / sMin));
+      const bg = modal('<h3>' + I.target + ' 로고 위치·크기</h3><p class="muted">그림을 끌어서 위치를, 아래 막대로 크기를 맞추세요. <b>네모 칸 안</b>이 로고가 됩니다.</p>' +
+        '<div class="lc-stage" id="lcStage"><img id="lcImg" alt="" draggable="false"><div class="lc-frame"></div></div>' +
+        '<div class="lc-zoom"><span>작게</span><input type="range" id="lcZoom" min="0" max="1000" value="' + toV(c.s) + '"><span>크게</span></div>' +
+        '<div class="lc-opts"><button class="btn gray sm" data-lc="fit">전체 보이게</button><button class="btn gray sm" data-lc="cover">칸 꽉 채우기</button>' +
+        '<span class="lc-bg">빈 곳<button data-lc-bg="white" class="on">흰색</button><button data-lc-bg="none">투명</button></span></div>' +
+        '<div class="acts"><button class="btn gray" data-lc="cancel">취소</button><button class="btn" data-lc="ok">이대로 쓰기</button></div>');
+      bg.dataset.lock = '1'; // 끌다가 창 밖에서 손을 떼도 닫히지 않게
+      const stage = bg.querySelector('#lcStage'), im = bg.querySelector('#lcImg'), zoom = bg.querySelector('#lcZoom');
+      im.src = pic.toDataURL ? pic.toDataURL() : src;
+      const clamp = () => { const mx = (W * c.s) / 2 + V / 2 - 20, my = (H * c.s) / 2 + V / 2 - 20; c.x = Math.max(-mx, Math.min(mx, c.x)); c.y = Math.max(-my, Math.min(my, c.y)); };
+      const draw = () => {
+        clamp();
+        im.style.width = W * c.s + 'px'; im.style.height = H * c.s + 'px';
+        im.style.left = SV / 2 + c.x - (W * c.s) / 2 + 'px'; im.style.top = SV / 2 + c.y - (H * c.s) / 2 + 'px';
+        stage.classList.toggle('clear', c.bg === 'none');
+      };
+      const setS = (s, keepSlider) => { c.s = Math.max(sMin, Math.min(sMax, s)); if (!keepSlider) zoom.value = toV(c.s); draw(); };
+      zoom.addEventListener('input', () => setS(sMin * Math.pow(sMax / sMin, zoom.value / 1000), true));
+      // 끌기 · 두 손가락 벌리기
+      const pts = new Map(); let pinch = 0;
+      const dist = () => { const a = [...pts.values()]; return Math.hypot(a[0].x - a[1].x, a[0].y - a[1].y); };
+      stage.addEventListener('pointerdown', (e) => { stage.setPointerCapture(e.pointerId); pts.set(e.pointerId, { x: e.clientX, y: e.clientY }); if (pts.size === 2) pinch = dist(); e.preventDefault(); });
+      stage.addEventListener('pointermove', (e) => {
+        const p = pts.get(e.pointerId); if (!p) return;
+        if (pts.size === 1) { c.x += e.clientX - p.x; c.y += e.clientY - p.y; }
+        p.x = e.clientX; p.y = e.clientY;
+        if (pts.size === 2) { const d = dist(); if (pinch) setS(c.s * d / pinch); pinch = d; } else draw();
+      });
+      const up = (e) => { pts.delete(e.pointerId); pinch = pts.size === 2 ? dist() : 0; };
+      stage.addEventListener('pointerup', up); stage.addEventListener('pointercancel', up);
+      stage.addEventListener('wheel', (e) => { e.preventDefault(); setS(c.s * (e.deltaY < 0 ? 1.08 : 1 / 1.08)); }, { passive: false });
+      bg.addEventListener('click', (e) => {
+        const b = e.target.closest('[data-lc],[data-lc-bg]'); if (!b) return;
+        if (b.dataset.lcBg) { c.bg = b.dataset.lcBg; bg.querySelectorAll('[data-lc-bg]').forEach((x) => x.classList.toggle('on', x === b)); draw(); return; }
+        const k = b.dataset.lc;
+        if (k === 'fit' || k === 'cover') { c.x = 0; c.y = 0; setS(k === 'fit' ? fit : cover); return; }
+        if (k === 'cancel') { closeModal(); return; }
+        // 이대로 쓰기: 칸 안을 160px(크면 128px, 그래도 크면 흰 바탕 JPEG)로 만든다
+        const make = (n, white) => {
+          const cv = document.createElement('canvas'); cv.width = cv.height = n;
+          const x = cv.getContext('2d'), k2 = n / V;
+          if (white) { x.fillStyle = '#fff'; x.fillRect(0, 0, n, n); }
+          x.imageSmoothingQuality = 'high';
+          x.drawImage(pic, (V / 2 + c.x - (W * c.s) / 2) * k2, (V / 2 + c.y - (H * c.s) / 2) * k2, W * c.s * k2, H * c.s * k2);
+          return cv;
+        };
+        const white = c.bg === 'white';
+        let data = make(160, white).toDataURL('image/png');
+        if (data.length > 40000) data = make(128, white).toDataURL('image/png');
+        if (data.length > 40000) data = make(160, true).toDataURL('image/jpeg', 0.85);
+        closeModal();
+        S.cache.logo = data; S.cache.logoSrc = { src, out: data }; // 다시 조정할 때는 원본 그림으로
+        const p = $('#logoPrev'); if (p) p.innerHTML = '<img src="' + data + '" alt="">';
+        const cb = $('#logoCropBtn'); if (cb) cb.hidden = false;
+        if ($('#lgSize') && S.team) logoBgColor(data).then((bgc) => { logoPreview(); S.cache.logoStyle.bg = bgc; logoPreview(); });
+      });
+      draw();
+    };
+    img.onerror = () => toast('그림을 읽지 못했습니다', 'error');
+    img.src = src;
   }
   function createHtml() {
     const days = S.cache.newDays || (S.cache.newDays = [{ weekday: 3, time: '20:00', end: '22:00', place: '' }]);
@@ -338,7 +419,8 @@
         const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, n, n); x.drawImage(img, 0, 0, n, n);
         const d = x.getImageData(0, 0, n, n).data, sum = [0, 0, 0]; let k = 0;
         for (let i = 0; i < n; i++) [[i, 0], [i, n - 1], [0, i], [n - 1, i]].forEach(([px, py]) => { const o = (py * n + px) * 4; sum[0] += d[o]; sum[1] += d[o + 1]; sum[2] += d[o + 2]; k++; });
-        res(rgbHex(sum.map((v) => v / k)));
+        const avg = sum.map((v) => v / k);
+        res(Math.min.apply(null, avg) >= 236 ? '#ffffff' : rgbHex(avg)); // 거의 흰색(압축·가장자리 번짐)은 흰색으로 — 회색 바처럼 보이지 않게
       };
       img.onerror = () => res('');
       img.src = src;
@@ -414,18 +496,70 @@
     const chosen = S.cache.attPick && S.cache.attPick.team === t.id ? S.cache.attPick.days : (a.mine ? a.mine.days.slice() : []);
     S.cache.attPick = { team: t.id, days: chosen };
     const badge = p.memberType === '정회원' ? (t.checkItems.map((c) => (p.checks[c.id] ? '<span class="chip">' + esc(c.label) + ' 완료</span>' : '<span class="chip warn">' + esc(c.label) + ' 미완료</span>')).join('') || '<span class="chip">정회원</span>') : '<span class="chip gray">' + p.memberType + '</span>';
-    const cmts = a.list.filter((x) => x.comment);
-    return summaryCard(t, a) +
-      '<div class="card"><h2>' + I.megaphone + ' 공지사항</h2><div class="notice">' + (t.notice ? esc(t.notice) : '<span class="empty">공지사항이 없습니다.</span>') + '</div></div>' +
-      '<div class="card"><h2>' + I.chat + ' 한마디</h2>' + (cmts.length ? cmts.map((c) => '<div class="cmt"><b>' + esc(c.name) + '</b> : ' + esc(c.comment) + '</div>').join('') : '<p class="empty">아직 남긴 한마디가 없습니다.</p>') + '</div>' +
-      '<div class="card"><h2>' + I.check + ' 이번 주 참석 체크</h2>' +
+    // 접기·펼치기 상태 (팀을 바꾸면 처음 상태로)
+    const ui = S.cache.attUi && S.cache.attUi.team === t.id ? S.cache.attUi : (S.cache.attUi = { team: t.id, notice: false, chat: false, sel: '', open: false, write: false });
+    if (ui.sel && !t.days.some((d) => d.id === ui.sel)) ui.sel = '';
+    return '<div class="att">' + noticeBoard(t, ui) + countCard(t, a, ui) + chatCard(t, a, ui) +
+      '<div class="card ckf' + (ui.open ? ' open' : '') + (a.mine ? '' : ' todo') + '" id="ckf"><button class="ckf-hd" data-act="attFold"><span class="ckf-ic">' + I.check + '</span><span><span class="ckf-t">이번 주 참석 체크</span>' +
+      (a.mine ? '<span class="ckf-s">제출함 · <b>' + esc(shortDays(t, a.mine.days)) + '</b> · 눌러서 수정</span>' : '<span class="ckf-s todo"><b>아직 안 했어요</b> · 눌러서 체크하기</span>') + '</span><span class="ckf-ar">▾</span></button>' +
+      '<div class="ckf-body">' +
       '<div class="me-card"><span><b>이름</b>' + esc(p.name) + '</span><span><b>등번호</b>' + esc(p.number || '-') + '</span><span><b>포지션</b>' + esc(p.position || '-') + '</span><span><b>역할</b>' + ROLE[t.my.role] + '</span><div class="row wrap" style="width:100%;gap:6px">' + badge + '<button class="linkbtn" data-act="myProfile" style="margin-left:auto">내 정보 수정</button></div></div>' +
       (a.mine ? '<div class="prev">' + I.alert + ' 이번 주에 이미 제출했습니다: <b>' + esc(dayNames(t, a.mine.days)) + '</b> · 다시 제출하면 수정됩니다.</div>' : '') +
       '<label class="f">참석 가능일 *</label>' +
       t.days.map((d) => dayBlock(d.id, d.title, (d.place || '') + (d.passed ? ' · 지난 날' : ''), chosen.includes(d.id), d.passed)).join('') +
       dayBlock('none', '모두 불참', '이번 주는 참석이 어려워요.', chosen.includes('none'), false) +
       '<label class="f">한마디 (팀원에게만 보입니다)</label><textarea class="in" id="attCmt" maxlength="200" placeholder="예: 조금 늦어요">' + esc(S.cache.attCmt != null && S.cache.attCmtTeam === t.id ? S.cache.attCmt : (a.mine ? a.mine.comment : '')) + '</textarea>' +
-      '<button class="btn block mt12" data-act="attSubmit">' + (a.mine ? '수정해서 제출' : '제출하기') + '</button>' + teamLinkCard(t, true) + '</div>';
+      '<button class="btn block mt12" data-act="attSubmit">' + (a.mine ? '수정해서 제출' : '제출하기') + '</button>' + teamLinkCard(t, true) + '</div></div></div>';
+  }
+  /* 요일만 짧게: '목, 토' */
+  const shortDays = (t, ids) => ids.map((id) => (id === 'none' ? '모두 불참' : Api.WEEKDAYS[(t.days.find((d) => d.id === id) || {}).weekday] || '삭제된 요일')).join(', ');
+  /* 공지사항 = 게시판 (5줄 넘으면 접고 '더보기' — 넘는지는 그린 뒤 높이를 재서 afterRender 가 정한다) */
+  function noticeBoard(t, ui) {
+    if (!t.notice || !t.notice.trim()) return '<div class="card nb empty"><div class="nb-hd">' + I.megaphone + ' 공지사항<span class="fold-more">등록된 공지가 없습니다</span></div></div>';
+    return '<div class="card nb' + (ui.notice ? '' : ' clamp') + '" data-act="attNotice"><div class="nb-hd">' + I.megaphone + ' 공지사항<span class="fold-more">' + (ui.notice ? '접기 ▴' : '더보기 ▾') + '</span></div>' +
+      '<div class="nb-body"><span class="nb-tag">공지</span>' + esc(t.notice) + '</div></div>';
+  }
+  /* 참석 인원: 요일마다 큰 숫자. 날짜를 누르면 그날 참석자 + '현황 보기' 켜짐 */
+  function countCard(t, a, ui) {
+    const nx = nextDayId(t), sel = t.days.find((d) => d.id === ui.sel);
+    const tiles = t.days.map((d) => '<button class="ct' + (d.id === nx ? ' next' : '') + (d.passed ? ' past' : '') + (d.id === ui.sel ? ' on' : '') + '" data-act="attDay" data-id="' + d.id + '">' +
+      '<span class="w">' + Api.WEEKDAYS[d.weekday] + '<small>' + esc(d.title.split('(')[0]) + '</small></span><span class="n">' + (a.counts[d.id] || 0) + '<span>명</span></span>' +
+      '<span class="tm">' + esc(d.time || '') + (d.passed ? ' · 지난 날' : '') + '</span></button>').join('');
+    let who = '';
+    if (sel) {
+      const ppl = a.list.filter((x) => x.days.includes(sel.id));
+      who = '<div class="cnt-who"><div class="t">' + esc(sel.title) + ' <span>' + (sel.place ? '· ' + esc(sel.place) + ' ' : '') + '· 참석 ' + ppl.length + '명</span></div>' +
+        (ppl.length ? '<div class="who-list">' + ppl.map((x) => '<span class="who' + (x.memberType !== '정회원' ? ' g' : '') + '">' + esc(x.name) + (x.memberType !== '정회원' ? '(' + esc(x.memberType) + ')' : '') + '</span>').join('') + '</div>' : '<p class="empty">아직 참석한다고 한 사람이 없습니다.</p>') + '</div>';
+    }
+    return '<div class="card cnt"><div class="cnt-hd"><h2>' + I.chart + ' 참석 인원' + (sel || !t.days.length ? '' : '<span class="cnt-hint">날짜를 누르면 명단</span>') + '</h2>' +
+      '<button class="btn sm" data-act="attGoStatus"' + (sel ? '' : ' disabled') + '>현황 보기 ›</button></div>' +
+      (t.days.length ? '<div class="cnt-row">' + tiles + '</div>' : '<p class="empty">농구하는 날이 없습니다.</p>') + who + '</div>';
+  }
+  /* 한마디 = 카카오톡 채팅. 접힘: 최근 5개 한 줄씩 · 펼침: 전부 + 칸 안 스크롤 + 입력창 */
+  const CMT_FOLD = 5;
+  function kkTime(ms) {
+    if (!ms) return '';
+    const d = new Date(ms), today = new Date(); today.setHours(0, 0, 0, 0);
+    const h = d.getHours(), day = d >= today ? '오늘' : Api.WEEKDAYS[d.getDay()];
+    return day + ' ' + (h < 12 ? '오전 ' : '오후 ') + ((h % 12) || 12) + ':' + String(d.getMinutes()).padStart(2, '0');
+  }
+  function chatCard(t, a, ui) {
+    const cmts = a.list.filter((x) => x.comment);
+    // 한마디는 한 주에 한 사람 하나 — 이미 남겼으면 보내는 말로 바뀐다
+    const input = '<div class="kk-in"><input id="kkIn" maxlength="200" placeholder="' + (a.mine && a.mine.comment ? '내 한마디 바꾸기 (한 주에 하나)' : '한마디 남기기 (예: 조금 늦어요)') + '"><button data-act="attChatSend">전송</button></div>';
+    if (!cmts.length) return '<div class="card kk-card"><div class="kk-hd">' + I.chat + ' 한마디 <span class="none">· 아직 없어요</span>' + (ui.write ? '' : '<button class="kk-empty" data-act="attChatWrite">남기기 ✎</button>') + '</div>' + (ui.write ? input : '') + '</div>';
+    const many = cmts.length > CMT_FOLD, open = ui.chat || !many;
+    const meId = a.mine ? a.mine.userId : '';
+    const msgs = cmts.map((c, i) => {
+      const old = many && i < cmts.length - CMT_FOLD ? ' old' : '';
+      if (c.userId === meId) return '<div class="kk-m me' + old + '"><div class="kk-c"><div class="kk-line"><div class="kk-b">' + esc(c.comment) + '</div><span class="kk-tm">' + kkTime(c.at) + '</span></div></div></div>';
+      const m = t.members.find((x) => x.userId === c.userId);
+      return '<div class="kk-m' + old + '"><div class="kk-av">' + (m && m.number ? esc(m.number) : initial(c.name)) + '</div><div class="kk-c"><div class="kk-nm">' + esc(c.name) + '</div><div class="kk-line"><div class="kk-b">' + esc(c.comment) + '</div><span class="kk-tm">' + kkTime(c.at) + '</span></div></div></div>';
+    }).join('');
+    return '<div class="card kk-card' + (open ? ' open' : '') + (many ? ' many' : '') + '" id="kkCard"><div class="kk-hd"' + (many ? ' data-act="attChat"' : '') + '>' + I.chat + ' 한마디 <small>팀원에게만</small>' +
+      (many ? '<span class="fold-more kk-fold">접기 ▴</span>' : '') + '</div>' +
+      '<div class="kk"' + (many && !open ? ' data-act="attChat"' : '') + '><div class="kk-day"><span>이번 주 한마디 ' + cmts.length + '개</span></div>' + msgs + '</div>' +
+      (many ? '<button class="kk-more" data-act="attChat">더보기 · 한마디 ' + cmts.length + '개 ▾</button>' : '') + input + '</div>';
   }
   function dayBlock(id, title, desc, on, past) {
     return '<button class="day-block ' + (on ? 'on ' : '') + (past ? 'past' : '') + '" data-act="attPick" data-id="' + id + '"><span class="ck">' + (on ? '✓' : '') + '</span><span class="grow"><span class="dt">' + esc(title) + '</span>' + (desc ? '<div class="dd">' + esc(desc) + '</div>' : '') + '</span></button>';
@@ -452,7 +586,7 @@
     const secs = t.days.map((d) => {
       const yes = a.list.filter((x) => x.days.includes(d.id)).map((x) => x.name + (x.memberType !== '정회원' ? '(' + x.memberType + ')' : ''));
       const no = regular.filter((m) => voted[m.userId] && !voted[m.userId].days.includes(d.id)).map((m) => m.name);
-      return '<div class="st-sec' + (d.id === nx ? ' next' : (d.passed ? ' past' : '')) + '">' +
+      return '<div class="st-sec' + (d.id === nx ? ' next' : (d.passed ? ' past' : '')) + '" id="st-' + d.id + '">' +
         '<h3>' + esc(d.title) + (d.place ? ' <span class="muted">' + esc(d.place) + '</span>' : '') + (d.passed ? ' <span class="muted">· 지난 날</span>' : '') + '</h3>' +
         '<div class="st-line"><span class="tag yes">참석 ' + yes.length + '</span>' + (esc(yes.join(', ')) || '-') + '</div>' +
         '<div class="st-line"><span class="tag no">불참 ' + no.length + '</span>' + (esc(no.join(', ')) || '-') + '</div></div>';
@@ -874,7 +1008,7 @@
     return '<div class="card" id="thCard"><h2>' + I.shirt + ' 팀 색상</h2><p class="muted">팀 컬러에 맞춰 상단 바·버튼(<b>주 색</b>)과 아이콘·탭 밑줄·강조 표시(<b>강조 색</b>)를 바꿉니다. 저장하면 팀원 모두의 화면에 적용됩니다.</p>' +
       '<div class="theme-grid mt12">' + THEMES.map((x) => '<button class="theme-opt' + (cur.main === x[1] && cur.accent === x[2] ? ' on' : '') + '" data-act="thPick" data-m="' + x[1] + '" data-a="' + x[2] + '"><span class="th-sw"><i style="background:' + x[1] + '"></i><i style="background:' + x[2] + '"></i></span>' + esc(x[0]) + '</button>').join('') + '</div>' +
       '<div class="th-custom mt12"><label>주 색 <input type="color" id="thMain" value="' + esc(cur.main) + '"></label><label>강조 색 <input type="color" id="thAccent" value="' + esc(cur.accent) + '"></label></div>' +
-      '<p class="muted mt8">직접 고를 수도 있습니다. 아주 밝은 색은 글자가 잘 보이도록 조금 어둡게 바꿔 씁니다.</p>' +
+      '<p class="muted mt8">직접 고를 수도 있습니다. 주 색을 흰색처럼 밝게 고르면 상단 바는 그 색 그대로 칠하고 글자를 어둡게 바꾸며, 버튼은 강조 색으로 칠합니다.</p>' +
       '<div class="row mt12"><button class="btn gray sm" data-act="thPick" data-m="' + DEF_THEME.main + '" data-a="' + DEF_THEME.accent + '">기본 색으로</button><button class="btn sm" style="margin-left:auto" data-act="thSave">색상 저장</button></div></div>';
   }
   function themePreview(th) {
@@ -974,7 +1108,12 @@
     navExplore: () => go({ page: 'explore' }),
     navMe: () => go({ page: 'me' }),
     goCreate: () => { S.cache.newDays = null; S.cache.logo = undefined; go({ page: 'create' }); },
-    logoClear: () => { S.cache.logo = ''; const p = $('#logoPrev'); if (p) p.innerHTML = '<span class="muted">없음</span>'; logoPreview(); },
+    logoClear: () => { S.cache.logo = ''; const p = $('#logoPrev'); if (p) p.innerHTML = '<span class="muted">없음</span>'; const cb = $('#logoCropBtn'); if (cb) cb.hidden = true; logoPreview(); },
+    logoCrop: () => { // 이번에 고른 원본이 있으면 원본으로, 없으면 지금 로고로 다시 조정
+      const cur = S.cache.logo !== undefined ? S.cache.logo : (S.route.page === 'team' && S.team ? S.team.logo : '');
+      const src = S.cache.logoSrc && S.cache.logoSrc.out === cur ? S.cache.logoSrc.src : cur;
+      if (src) logoCropper(src);
+    },
     exSido: (el) => { S.cache.ex.sido = el.dataset.v; render(); },
     openTeam: (el) => go({ page: 'team', teamId: el.dataset.id, tab: '' }),
     tab: (el) => { if (Api.refresh) Api.refresh(el.dataset.v === S.route.tab ? 0 : 5000); S.route.tab = el.dataset.v; S.cache.logo = undefined; S.cache.logoStyle = null; S.cache.themeDraft = null; render(); window.scrollTo(0, 0); }, // 탭을 옮기면 5초 넘은 자료는, 같은 탭을 다시 누르면 무조건 서버에서 새로 받는다
@@ -1015,6 +1154,50 @@
       if (id === 'none') p.days = p.days.includes('none') ? [] : ['none'];
       else { p.days = p.days.filter((x) => x !== 'none'); p.days = p.days.includes(id) ? p.days.filter((x) => x !== id) : p.days.concat(id); }
       vibrate(10); render();
+    },
+    // 참석 탭 접기·펼치기 (다시 불러오지 않고 그 칸만 바꾼다)
+    attNotice: (el) => {
+      const ui = S.cache.attUi; ui.notice = !ui.notice;
+      el.classList.toggle('clamp', !ui.notice);
+      const f = el.querySelector('.fold-more'); if (f) f.textContent = ui.notice ? '접기 ▴' : '더보기 ▾';
+    },
+    attDay: (el) => {
+      const ui = S.cache.attUi; ui.sel = ui.sel === el.dataset.id ? '' : el.dataset.id;
+      const c = $('.att .cnt'); if (c && S.att) c.outerHTML = countCard(S.team, S.att, ui);
+      vibrate(10);
+    },
+    attGoStatus: () => {
+      const ui = S.cache.attUi; if (!ui || !ui.sel) return;
+      S.cache.stFocus = ui.sel; A.tab({ dataset: { v: 'status' } });
+    },
+    attChat: () => {
+      const ui = S.cache.attUi; ui.chat = !ui.chat;
+      const c = $('#kkCard'); if (!c) return;
+      c.classList.toggle('open', ui.chat);
+      if (ui.chat) { const k = c.querySelector('.kk'); k.scrollTop = k.scrollHeight; k.removeAttribute('data-act'); } else c.querySelector('.kk').setAttribute('data-act', 'attChat');
+    },
+    attChatWrite: () => {
+      S.cache.attUi.write = true;
+      const c = $('.att .kk-card'); if (c && S.att) c.outerHTML = chatCard(S.team, S.att, S.cache.attUi);
+      const i = $('#kkIn'); if (i) i.focus();
+    },
+    attChatSend: async () => {
+      const txt = $('#kkIn').value.trim(), a = S.att;
+      if (!txt) { toast('한마디를 입력하세요', 'error'); return; }
+      if (a && a.mine) { // 참석 체크를 이미 했으면 한마디만 바꿔 저장
+        await run(Api.submitAttendance(S.team.id, a.mine.days, txt), '한마디를 남겼습니다');
+        S.cache.attPick = null; S.cache.attCmt = null; render();
+        return;
+      }
+      // 아직 참석 체크 전: 참석 체크를 펼치고 입력한 말을 옮겨 둔다
+      S.cache.attUi.open = true; S.cache.attCmt = txt; S.cache.attCmtTeam = S.team.id;
+      await render();
+      const f = $('#ckf'); if (f) f.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      toast('참석 가능일을 고르고 제출하면 한마디도 함께 올라갑니다');
+    },
+    attFold: () => {
+      const ui = S.cache.attUi; ui.open = !ui.open;
+      const f = $('#ckf'); if (f) f.classList.toggle('open', ui.open);
     },
     attSubmit: async () => {
       await run(Api.submitAttendance(S.team.id, S.cache.attPick.days, $('#attCmt').value), '제출했습니다');
@@ -1147,20 +1330,11 @@
   }
   document.addEventListener('change', (e) => {
     if (e.target.id !== 'logoIn' || !e.target.files || !e.target.files[0]) return;
-    const img = new Image(), url = URL.createObjectURL(e.target.files[0]);
-    img.onload = () => {
-      const n = 128, c = document.createElement('canvas'); c.width = c.height = n;
-      const side = Math.min(img.width, img.height);
-      c.getContext('2d').drawImage(img, (img.width - side) / 2, (img.height - side) / 2, side, side, 0, 0, n, n);
-      let data = c.toDataURL('image/png');
-      if (data.length > 40000) { const x = c.getContext('2d'); x.globalCompositeOperation = 'destination-over'; x.fillStyle = '#fff'; x.fillRect(0, 0, n, n); data = c.toDataURL('image/jpeg', 0.85); }
-      URL.revokeObjectURL(url);
-      S.cache.logo = data;
-      const p = $('#logoPrev'); if (p) p.innerHTML = '<img src="' + data + '" alt="">';
-      if ($('#lgSize') && S.team) logoBgColor(data).then((bg) => { logoPreview(); S.cache.logoStyle.bg = bg; logoPreview(); });
-    };
-    img.onerror = () => { URL.revokeObjectURL(url); toast('그림을 읽지 못했습니다', 'error'); };
-    img.src = url;
+    // 고른 그림은 바로 자르지 않고 자르기 창을 띄운다 (잘릴 부분·크기를 직접 맞춤)
+    const fr = new FileReader(), inp = e.target;
+    fr.onload = () => { inp.value = ''; logoCropper(fr.result); };
+    fr.onerror = () => toast('그림을 읽지 못했습니다', 'error');
+    fr.readAsDataURL(inp.files[0]);
   });
   // 로고 설정: 고르면 상단 바 미리 보기. '로고 배경색과 하나로'를 처음 고르면 배경색을 잰다
   document.addEventListener('change', (e) => {
@@ -1219,6 +1393,18 @@
   });
   function afterRender() {
     syncBarHeight();
+    // 참석 탭: 공지가 5줄 안에 들어가면 '더보기' 없앰 · 펼친 한마디는 최근 말이 보이게 맨 아래로
+    const nb = $('.att .nb[data-act] .nb-body');
+    if (nb && nb.scrollHeight <= 120) { const c = nb.parentNode; c.classList.remove('clamp'); c.removeAttribute('data-act'); const f = c.querySelector('.fold-more'); if (f) f.remove(); }
+    const kk = $('#kkCard.open.many .kk'); if (kk) { kk.scrollTop = kk.scrollHeight; kk.removeAttribute('data-act'); }
+    // 참석 탭에서 날짜를 골라 '현황 보기'로 왔으면 그 날짜 칸으로
+    if (S.cache.stFocus && S.route.tab === 'status') {
+      const el = $('#st-' + S.cache.stFocus); S.cache.stFocus = null;
+      if (el) {
+        const top = el.getBoundingClientRect().top + window.scrollY - ($('.appbar') ? $('.appbar').offsetHeight : 0) - ($('.tabs') ? $('.tabs').offsetHeight : 0) - 10;
+        window.scrollTo({ top, behavior: 'smooth' }); el.classList.add('flash'); setTimeout(() => el.classList.remove('flash'), 1600);
+      }
+    }
     window.onbeforeunload = Ext.unsaved && Ext.unsaved() ? () => '기록 입력 중입니다' : null;
   }
 
@@ -1249,6 +1435,10 @@
     }
     await home(true);
   }
+  // 참석 탭 한마디 입력창: Enter = 전송
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && e.target.id === 'kkIn' && !e.isComposing) { e.preventDefault(); A.attChatSend().catch(() => { /* run() 이 이미 알림 */ }); }
+  });
   // 로그인 화면: 비밀번호 칸에서 Enter = 로그인 (PC)
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Enter' || S.route.page !== 'login' || !e.target.matches || !e.target.matches('#lgId,#lgPw,#lgPw2,#lgName,#lgNo,#lgBy')) return;
