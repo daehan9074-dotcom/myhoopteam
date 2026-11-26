@@ -744,3 +744,26 @@ white-space:pre-wrap;line-height:22px;font-size:.84rem;color:#2b2f38}
   body:not(.rot) #full .ps-tbl{font-size:.74rem}
   body:not(.rot) #full .ps-tbl th{font-size:.68rem}
 }
+/* PC 기록 입력: 웹 기록지처럼 한 화면에 — 위 두 줄 도구막대, 표는 화면 폭 가득, 줄 높이는 낮게(선수가 많아도 두 팀이 한 화면에) */
+@media(min-width:900px){
+  body:not(.rot) #full.sheet .full-in{max-width:1500px}
+  .rs-toolbar.wide .rs-hd{margin-bottom:6px}
+  .rs-toolbar.wide .rs-top{display:grid;grid-template-columns:minmax(0,5.4fr) minmax(0,1.6fr) minmax(0,1.6fr) auto;gap:8px;margin-bottom:8px}
+  .rs-toolbar.wide .rs-top .rs-score{margin:0}
+  .rs-toolbar.wide .rs-top .sc{border-radius:10px;padding:6px 14px}
+  .rs-toolbar.wide .rs-top .sc-n{font-size:1.5rem}
+  .rs-toolbar.wide .rs-top .rs-mbtn{font-size:1rem;border-radius:10px}
+  .rs-toolbar.wide .rs-top .rs-tool.warn{padding:0 16px}
+  .rs-toolbar.wide .rs-tools{display:grid;grid-template-columns:1fr 1fr 1fr 2fr 2fr;gap:8px;margin-bottom:8px}
+  .rs-toolbar.wide .rs-tools .rs-tool{padding:9px 10px}
+  .rs-toolbar.wide+#rsTables .rs-tblwrap{overflow-x:visible}
+  .rs-toolbar.wide+#rsTables .rs-tbl{width:100%;table-layout:fixed}
+  .rs-toolbar.wide+#rsTables .rs-tbl th{min-width:0;padding:3px 2px}
+  .rs-toolbar.wide+#rsTables .rs-tbl th.ko{white-space:normal;word-break:keep-all}
+  .rs-toolbar.wide+#rsTables .rs-tbl .rs-name{width:9%;min-width:0;max-width:none}
+  .rs-toolbar.wide+#rsTables .rs-tbl td,.rs-toolbar.wide+#rsTables .rs-nbtn{height:29px;padding-top:0;padding-bottom:0}
+  .rs-toolbar.wide~.rs-foot{display:none} /* 닫기는 위 제목줄 오른쪽에 */
+  .rs-toolbar.wide~.ps-note{margin-top:6px}
+  .rs-toolbar.wide+#rsTables .rs-tbl td.rs-cell{font-size:.92rem}
+  .rs-toolbar.wide+#rsTables .rs-tbl td.rs-cell:hover{background:var(--green-light)}
+}

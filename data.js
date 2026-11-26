@@ -220,7 +220,9 @@
         isMember: member, isAdmin: isAdmin(teamId), isOwner: isOwner(teamId), perms: permsOf(m),
         // 다른 팀 사람에게는 공지·회비·선수등록을 내려주지 않는다
         notice: member ? (t.notice || '') : null,
-        members: sortMembers(activeMembers(teamId).map((x) => profileOut(x, member)))
+        privacy: privacyOf(t),
+        // 팀원 이름은 대표가 '다른 팀에 공개'를 껐으면 다른 팀에게 내려주지 않는다 (인원수는 그대로)
+        members: member || privacyOf(t).members ? sortMembers(activeMembers(teamId).map((x) => profileOut(x, member))) : []
       };
       if (can(teamId, 'join')) v.pendingCount = db.memberships.filter((x) => x.teamId === teamId && x.status === 'pending').length;
       if (can(teamId, 'msg')) v.msgUnread = db.posts.filter((p) => p.teamId === teamId && p.kind === 'msg' && !p.readByTeam).length;
@@ -251,6 +253,7 @@
       if (patch.notice != null) need('notice');
       if (patch.days) need('schedule');
       if (['name', 'sido', 'area', 'intro', 'logo', 'kba', 'checkItems'].some((k) => patch[k] != null) || patch.theme !== undefined || patch.logoStyle !== undefined) need('team');
+      if (patch.privacy != null && !isOwner(teamId)) throw new Error('다른 팀에 보일 항목은 대표만 정할 수 있습니다');
       const t = team(teamId);
       if (patch.name != null) { const n = clean(patch.name, 30); if (!n) throw new Error('팀 이름을 입력하세요'); t.name = n; }
       if (patch.sido != null) { if (!SIDO.includes(patch.sido)) throw new Error('지역을 선택하세요'); t.sido = patch.sido; }
@@ -260,6 +263,7 @@
       if (patch.logo != null) t.logo = cleanLogo(patch.logo);
       if (patch.theme !== undefined) t.theme = cleanTheme(patch.theme); // null = 기본 색으로
       if (patch.logoStyle !== undefined) t.logoStyle = cleanLogoStyle(patch.logoStyle);
+      if (patch.privacy != null) t.privacy = privacyOf({ privacy: patch.privacy });
       if (patch.kba != null) { if (patch.kba !== 'yes' && patch.kba !== 'no') throw new Error('협회 등록 여부를 선택하세요'); t.kba = patch.kba; }
       if (patch.checkItems) {
         const seen = {};
@@ -375,7 +379,7 @@
       const rows = db.attendance.filter((a) => a.teamId === teamId && a.week === wk);
       const counts = {};
       t.days.forEach((d) => { counts[d.id] = rows.filter((a) => a.days.includes(d.id)).length; });
-      if (!isActive(teamId)) return { week: wk, counts, list: null, mine: null }; // 다른 팀: 인원수만
+      if (!isActive(teamId)) return privacyOf(t).attendance ? { week: wk, counts, list: null, mine: null } : { week: wk, counts: {}, list: null, mine: null, hidden: true }; // 다른 팀: 인원수만 (대표가 숨기면 그것도 없음)
       const list = rows.map((a) => { const m = memOf(teamId, a.userId); return { userId: a.userId, name: m ? m.profile.name : '?', memberType: m ? m.profile.memberType : '', days: a.days, comment: a.comment, at: a.at }; })
         .sort((a, b) => a.at - b.at);
       return { week: wk, counts, list, mine: list.find((a) => a.userId === me().id) || null };
@@ -505,7 +509,8 @@
 
     /* ----- 경기 기록 (다른 팀도 볼 수 있음) ----- */
     listGames: wrap((teamId) => {
-      team(teamId);
+      const t = team(teamId);
+      if (!isActive(teamId) && !privacyOf(t).games) return []; // 대표가 경기 기록을 다른 팀에 숨김
       return db.games.filter((g) => g.teamId === teamId).sort((a, b) => (b.date.localeCompare(a.date)) || (b.gameNo - a.gameNo));
     }),
     saveGame: wrap((teamId, g) => {
@@ -570,7 +575,7 @@
     lineupDates: wrap((teamId) => (isActive(teamId) ? db.lineups.filter((x) => x.teamId === teamId).map((x) => [x.date, x.day]) : [])),
 
     /* ----- 영상 링크 ([날짜, 게임 번호, 주소]. 경기 기록처럼 다른 팀도 볼 수 있음) ----- */
-    listVideos: wrap((teamId) => { team(teamId); return db.videos.filter((v) => v.teamId === teamId).map((v) => [v.date, v.game, v.url]); }),
+    listVideos: wrap((teamId) => { const t = team(teamId); if (!isActive(teamId) && !privacyOf(t).games) return []; return db.videos.filter((v) => v.teamId === teamId).map((v) => [v.date, v.game, v.url]); }),
     saveVideo: wrap((teamId, date, game, url) => {
       if (!isActive(teamId)) throw new Error('팀원만 등록할 수 있습니다');
       if (!/^\d{4}-\d{2}-\d{2}$/.test(date || '')) throw new Error('날짜가 올바르지 않습니다');
@@ -592,6 +597,8 @@
   const cleanLogo = (v) => (typeof v === 'string' && /^data:image\/(png|jpeg|webp);base64,/.test(v) && v.length < 45000 ? v : ''); // 시트 한 칸(5만 자)에 들어가야 한다
   // 팀 색상: 주 색(상단 바·버튼) + 강조 색(아이콘·탭 밑줄). 없으면 null = 앱 기본 색
   const HEX = /^#[0-9a-fA-F]{6}$/;
+  // 다른 팀(팀원이 아닌 사람)에게 보일 항목: 팀원 이름·이번 주 참석 인원·경기 기록. 없으면 모두 공개(예전과 같음)
+  const privacyOf = (t) => { const p = (t && t.privacy) || {}; return { members: p.members !== false, attendance: p.attendance !== false, games: p.games !== false }; };
   const cleanTheme = (v) => (v && HEX.test(v.main) && HEX.test(v.accent) ? { main: v.main.toLowerCase(), accent: v.accent.toLowerCase() } : null);
   // 상단 바 로고: 크기(s·m·l·xl)·위치(right·left)·테두리·상단 바를 로고 배경색(bg)으로 칠할지. 없으면 null = 기본(보통·오른쪽·테두리)
   const cleanLogoStyle = (v) => (v && typeof v === 'object' ? {

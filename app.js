@@ -1,7 +1,7 @@
 /* 나의 농구팀 — 화면 코드 (데이터는 data.js 의 Api 로만 주고받는다) */
 (function () {
   'use strict';
-  const VERSION = '0.9.0';
+  const VERSION = '0.9.1';
   const PRIVACY_URL = 'privacy.html';
   const $ = (s, r) => (r || document).querySelector(s);
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -366,7 +366,7 @@
     S.mems = await Api.myMemberships();
     const tabs = t.isMember
       ? [['attend', '참석'], ['status', '현황'], ['lineup', '팀 편성'], ['games', '기록']].concat(t.isAdmin ? [['admin', '관리']] : []) // 게시판은 0.5.1 에서 메뉴만 뺌 (게시판·투표·캘린더는 나중에 결정)
-      : [['info', '팀 소개'], ['status', '참석 현황'], ['games', '경기 기록']];
+      : [['info', '팀 소개']].concat(t.privacy && !t.privacy.attendance ? [] : [['status', '참석 현황']], t.privacy && !t.privacy.games ? [] : [['games', '경기 기록']]); // 대표가 숨긴 항목은 다른 팀에게 탭도 없음
     if (!tabs.some((x) => x[0] === r.tab)) r.tab = tabs[0][0];
     let body;
     switch (r.tab) {
@@ -445,11 +445,14 @@
     const join = st === 'pending'
       ? '<div class="card"><h2>' + I.hourglass + ' 가입 승인 대기 중</h2><p class="muted">대표나 임원이 수락하면 참석 체크·팀 편성·기록 입력을 쓸 수 있습니다.</p><button class="btn gray block mt12" data-act="cancelJoin">신청 취소</button></div>'
       : '<div class="card"><h2>' + I.userPlus + ' 이 팀에 가입하기</h2><p class="muted">가입 신청을 보내면 대표나 임원이 수락한 뒤 팀원이 됩니다. 다른 팀에 소속돼 있어도 함께 가입할 수 있습니다.</p><button class="btn block mt12" data-act="joinDlg">가입 신청</button></div>';
-    return join + inquiryCard(t, msgs) +
-      '<div class="card"><h2>' + I.clipboard + ' 팀 소개</h2><div class="row" style="margin-bottom:10px">' + teamAv(t.logo, t.name, 'lg') + '<div><b>' + esc(t.name) + '</b><div class="row mt8">' + (kbaChip(t.kba) || '<span class="chip gray">협회 미등록</span>') + '</div></div></div><p class="notice">' + (t.intro ? esc(t.intro) : '<span class="empty">소개 글이 없습니다.</span>') + '</p>' +
-      '<p class="muted mt12">농구하는 날: ' + (t.days.map((d) => esc(Api.WEEKDAYS[d.weekday] + ' ' + d.time + (d.end ? '~' + d.end : '') + (d.place ? ' ' + d.place : ''))).join(' / ') || '-') + '</p></div>' +
-      '<div class="card"><h2>' + I.lock + ' 팀원 전용</h2><div class="lock">공지사항·한마디·회비 정보는 팀원에게만 보입니다.</div></div>' +
-      membersCard(t, false);
+    const pv = t.privacy || { members: true, attendance: true, games: true };
+    const hid = [!pv.members && '팀원 이름', !pv.attendance && '참석 인원', !pv.games && '경기 기록'].filter(Boolean);
+    // 순서: 팀 소개 → 가입 → 대표에게 문의 → (공개한 경우) 팀원
+    return '<div class="card"><h2>' + I.clipboard + ' 팀 소개</h2><div class="row" style="margin-bottom:10px">' + teamAv(t.logo, t.name, 'lg') + '<div><b>' + esc(t.name) + '</b><div class="row mt8">' + (kbaChip(t.kba) || '<span class="chip gray">협회 미등록</span>') + '</div></div></div><p class="notice">' + (t.intro ? esc(t.intro) : '<span class="empty">소개 글이 없습니다.</span>') + '</p>' +
+      '<p class="muted mt12">농구하는 날: ' + (t.days.map((d) => esc(Api.WEEKDAYS[d.weekday] + ' ' + d.time + (d.end ? '~' + d.end : '') + (d.place ? ' ' + d.place : ''))).join(' / ') || '-') + '</p>' +
+      '<p class="muted mt8">팀원 ' + t.memberCount + '명</p></div>' + join + inquiryCard(t, msgs) +
+      '<div class="card"><h2>' + I.lock + ' 팀원 전용</h2><div class="lock">공지사항·한마디·회비 정보' + (hid.length ? '와 ' + esc(hid.join('·')) : '') + '는 팀원에게만 보입니다.</div></div>' +
+      (pv.members ? membersCard(t, false) : '');
   }
   /* ----- 문의 (다른 팀·사람 → 대표) ----- */
   const msgTypeLabel = (k) => ((Api.MSG_TYPES || []).find((x) => x[0] === k) || [k, '문의'])[1];
@@ -462,11 +465,12 @@
     return '<details class="mt' + (m.unread ? ' unread' : '') + '" data-msg="' + m.id + '"' + (open ? ' open' : '') + '><summary>' +
       '<span class="mt-type t-' + esc(m.type) + '">' + esc(msgTypeLabel(m.type)) + '</span>' +
       '<span class="grow mt-sum"><b>' + esc(staff ? m.name + (m.fromTeam ? ' · ' + m.fromTeam : '') : (last && last.by === 'team' ? '답장이 왔습니다' : '보낸 문의')) + '</b><small>' + esc((last ? last.body : m.body).slice(0, 40)) + '</small></span>' +
-      (m.unread ? '<span class="mt-new">새 글</span>' : '') + '<span class="mt-at">' + fmtTime(m.lastAt) + '</span></summary>' +
+      (m.unread ? '<span class="mt-new">' + (staff ? '답장 필요' : '새 글') + '</span>' : '') + '<span class="mt-at">' + fmtTime(m.lastAt) + '</span></summary>' +
       '<div class="mt-body">' + bub('user', m.name + (m.fromTeam ? ' (' + m.fromTeam + ')' : ''), m.body, m.at, staff ? 'you' : 'me') +
       m.replies.map((r) => bub(r.by, r.name, r.body, r.at, mySide(r.by))).join('') +
       '<div class="mt-in"><textarea class="in" id="mr-' + m.id + '" maxlength="1000" placeholder="' + (staff ? '답장 쓰기' : '이어서 쓰기') + '"></textarea>' +
-      '<div class="row mt8"><button class="btn gray sm" data-act="msgDel" data-id="' + m.id + '">삭제</button><button class="btn sm" style="margin-left:auto" data-act="msgReply" data-id="' + m.id + '">' + (staff ? '답장 보내기' : '보내기') + '</button></div></div></div></details>';
+      '<div class="row mt8"><button class="btn gray sm" data-act="msgDel" data-id="' + m.id + '">삭제</button>' + (staff && m.unread ? '<button class="btn line sm" data-act="msgDone" data-id="' + m.id + '">답장 없이 완료</button>' : '') +
+      '<button class="btn sm" style="margin-left:auto" data-act="msgReply" data-id="' + m.id + '">' + (staff ? '답장 보내기' : '보내기') + '</button></div></div></div></details>';
   }
   /* 팀 소개 화면(다른 팀 사람)의 '대표에게 문의하기' + 내가 보낸 문의 */
   function inquiryCard(t, msgs) {
@@ -480,8 +484,8 @@
   /* 관리 탭: 받은 문의 */
   function inboxCard(t, msgs) {
     const n = msgs.filter((m) => m.unread).length;
-    return '<div class="card" id="inbox"><h2>' + I.chat + ' 받은 문의 ' + msgs.length + '건' + (n ? ' <span class="chip warn">새 글 ' + n + '</span>' : '') + '</h2>' +
-      '<p class="muted">다른 팀·사람이 팀 찾기에서 보낸 게스트 참여·교류전 문의입니다. 눌러서 읽고 답장하세요.</p>' +
+    return '<div class="card" id="inbox"><h2>' + I.chat + ' 받은 문의 ' + msgs.length + '건' + (n ? ' <span class="chip warn">답장 필요 ' + n + '</span>' : '') + '</h2>' +
+      '<p class="muted">다른 팀·사람이 팀 찾기에서 보낸 게스트 참여·교류전 문의입니다. 눌러서 읽고 답장하세요. 답장하거나 <b>답장 없이 완료</b>를 누르면 관리 탭 숫자에서 빠집니다.</p>' +
       (msgs.length ? '<div class="mt-list mt8">' + msgs.map((m) => msgThread(t, m, true)).join('') + '</div>' : '<p class="empty">받은 문의가 없습니다.</p>') + '</div>';
   }
   /* 팀원 목록: 기본(역할·회원 구분) · 포지션(G-F-C) · 나이 · 확인 항목(회비 등)별로 정렬. 같은 버튼을 한 번 더 누르면 반대로 */
@@ -1033,7 +1037,7 @@
     const none = !t.perms.length ? '<div class="card"><h2>' + I.lock + ' 받은 권한이 없습니다</h2><p class="muted">임원으로 지정됐지만 아직 받은 권한이 없습니다. 대표에게 필요한 권한을 요청하세요.</p></div>' : '';
     const mine = t.isOwner ? '' : '<div class="card"><h2>' + I.shield + ' 내 권한 (임원)</h2><div class="perm-chips">' + Api.PERMS.filter((p) => can(t, p[0])).map((p) => '<span class="chip">' + esc(p[1]) + '</span>').join('') + '</div></div>';
     return none + (t.perms.length ? mine : '') + (msgs ? inboxCard(t, msgs) : '') + (reqs ? joinReqCard(reqs) : '') + teamLinkCard(t) +
-      (t.isOwner ? officersCard(t) : '') +
+      (t.isOwner ? officersCard(t) + privacyCard(t) : '') +
       (can(t, 'notice') ? '<div class="card"><h2>' + I.megaphone + ' 공지사항</h2><textarea class="in" id="admNotice" maxlength="2000" placeholder="팀원에게만 보이는 공지">' + esc(t.notice || '') + '</textarea><button class="btn block mt8" data-act="admNotice">공지 저장</button></div>' : '') +
       (can(t, 'schedule') ? '<div class="card"><h2>' + I.calendar + ' 농구하는 날</h2><div id="admDays">' + dayRowsHtml(t.days) + '</div><div class="row mt8"><button class="btn line sm" data-act="dayAdd">+ 요일 추가</button><button class="btn sm" style="margin-left:auto" data-act="admDays">요일 저장</button></div>' +
         '<button class="btn danger block mt12" data-act="admReset">이번 주 참석 체크 초기화</button><p class="muted mt8">주가 바뀌면(월요일) 참석 체크는 자동으로 새로 시작됩니다.</p></div>' : '') +
@@ -1041,6 +1045,14 @@
         '<div class="row mt8"><button class="btn line sm" data-act="ckAdd">+ 항목 추가</button><button class="btn sm" style="margin-left:auto" data-act="ckSave">항목 저장</button></div></div>' : '') +
       (can(t, 'members') || can(t, 'join') || t.isOwner ? membersCard(t, true).replace('<h2>' + I.users + '', '<h2>' + I.users + ' 눌러서 관리 ·') : '') +
       (can(t, 'team') ? themeCardHtml(t) + teamInfoCard(t) : (t.isOwner ? '<div class="card"><button class="btn danger block" data-act="admDelete">팀 삭제</button></div>' : ''));
+  }
+  /* 대표: 다른 팀(팀원이 아닌 사람)에게 보일 항목 */
+  function privacyCard(t) {
+    const pv = t.privacy || { members: true, attendance: true, games: true };
+    const row = (k, label, desc) => '<label class="perm-row"><input type="checkbox" data-pv="' + k + '"' + (pv[k] ? ' checked' : '') + '> <span><b>' + label + '</b><br><small class="muted">' + desc + '</small></span></label>';
+    return '<div class="card"><h2>' + I.eye + ' 다른 팀에 공개</h2><p class="muted">팀 찾기로 들어온 다른 팀 사람에게 보일 항목입니다. 끄면 팀원에게만 보입니다. 팀 소개·지역·농구하는 날·팀원 수는 늘 보입니다.</p>' +
+      row('members', '팀원 이름', '팀 소개 화면의 팀원 목록') + row('attendance', '이번 주 참석 인원', '참석 현황 탭 (요일별 인원수)') + row('games', '경기 기록', '경기 기록 탭 (기록·선수 기록·영상)') +
+      '<button class="btn block mt8" data-act="pvSave">공개 설정 저장</button></div>';
   }
   /* 대표: 임원 지정·권한 (팀원 이름을 눌러 임원으로 바꾸고 권한을 고른다) */
   function officersCard(t) {
@@ -1193,6 +1205,11 @@
       await run(Api.replyMessage(S.team.id, id, b), '보냈습니다');
       S.cache.msgOpen = id; render();
     },
+    pvSave: async () => {
+      const pv = {}; document.querySelectorAll('[data-pv]').forEach((c) => { pv[c.dataset.pv] = c.checked; });
+      await run(Api.updateTeam(S.team.id, { privacy: pv }), '공개 설정을 저장했습니다'); render();
+    },
+    msgDone: async (el) => { await run(Api.readMessage(S.team.id, el.dataset.id), '완료로 표시했습니다'); render(); },
     msgDel: async (el) => {
       if (!(await confirmBox('문의 지우기', '이 문의와 주고받은 글을 모두 지웁니다. 상대방에게서도 사라집니다.', '지우기', true))) return;
       await run(Api.deleteMessage(S.team.id, el.dataset.id), '지웠습니다'); render();
@@ -1541,9 +1558,9 @@
     if (!d.matches || !d.matches('details.mt')) return;
     if (!d.open) { if (S.cache.msgOpen === d.dataset.msg) S.cache.msgOpen = null; return; }
     S.cache.msgOpen = d.dataset.msg;
-    if (d.classList.contains('unread') && S.team) {
+    if (d.classList.contains('unread') && S.team && !d.closest('#inbox')) { // 보낸 사람이 답장을 펼쳐 보면 읽음. 대표 쪽은 답장하거나 '완료'를 눌러야 숫자가 빠진다
       d.classList.remove('unread'); const n = d.querySelector('.mt-new'); if (n) n.remove();
-      Api.readMessage(S.team.id, d.dataset.msg).then(() => { if (S.team.msgUnread) S.team.msgUnread--; }).catch(() => { /* 다음에 다시 */ });
+      Api.readMessage(S.team.id, d.dataset.msg).catch(() => { /* 다음에 다시 */ });
     }
   }, true);
   // 참석 탭 한마디 입력창: Enter = 전송

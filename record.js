@@ -570,11 +570,15 @@
       const my = teamAt(R.match[0]);
       // 좁은 화면: 점수판을 눌러 팀 전환 / 넓은 화면: 두 팀을 위아래로 한 번에
       const tables = R.wide ? R.match.map(tableHtml).join('<div style="height:16px"></div>') : tableHtml(R.match[R.tab]);
-      return '<div class="rs-toolbar' + (R.mode < 0 ? ' minus' : '') + '">' + head('' + I.note + ' 기록 입력', '', esc(R.date) + ' · ' + esc(R.day || '-') + ' · ' + R.game + '게임 · ' + I.pencil + ' ' + esc(recorder()) + (R.inMode === 'team' && my ? ' (' + esc(my.label) + '팀 담당)' : '')) +
-        '<div class="rs-score" id="rsScore">' + scoreHtml() + '</div>' +
-        '<div class="rs-row"><button class="rs-mbtn' + (R.mode > 0 ? ' on' : '') + '" data-act="rsSetMode" data-v="1">＋ 입력</button><button class="rs-mbtn minus' + (R.mode < 0 ? ' on' : '') + '" data-act="rsSetMode" data-v="-1">－ 취소</button><button class="rs-tool warn" data-act="rsUndo">' + I.undo + ' 실행취소</button></div>' +
-        '<div class="rs-row tight"><button class="rs-tool" data-act="rsColorDlg">' + I.shirt + ' 유니폼색</button><button class="rs-tool vid" data-act="rsVideo">' + I.video + ' 영상링크</button><button class="rs-tool" data-act="rsSetup">' + I.gear + ' 설정</button></div>' +
-        '<div class="rs-row tight">' + rotateBtn() + '<button class="rs-tool" data-act="rsAddPlayer">＋ 선수·게스트</button><button class="rs-tool go" data-act="rsSave">' + I.save + ' 게임 저장</button></div></div>' +
+      const modeBtns = '<button class="rs-mbtn' + (R.mode > 0 ? ' on' : '') + '" data-act="rsSetMode" data-v="1">＋ 입력</button><button class="rs-mbtn minus' + (R.mode < 0 ? ' on' : '') + '" data-act="rsSetMode" data-v="-1">－ 취소</button><button class="rs-tool warn" data-act="rsUndo">' + I.undo + ' 실행취소</button>';
+      const tools1 = '<button class="rs-tool" data-act="rsColorDlg">' + I.shirt + ' 유니폼색</button><button class="rs-tool vid" data-act="rsVideo">' + I.video + ' 영상링크</button><button class="rs-tool" data-act="rsSetup">' + I.gear + ' 설정</button>';
+      const tools2 = '<button class="rs-tool" data-act="rsAddPlayer">＋ 선수·게스트</button><button class="rs-tool go" data-act="rsSave">' + I.save + ' 게임 저장</button>';
+      // PC(넓은 화면)는 웹 기록지처럼 두 줄: [점수판 | 입력 | 취소 | 실행취소] / [유니폼색 | 영상링크 | 설정 | 선수·게스트 | 게임 저장]
+      const bar = R.wide
+        ? '<div class="rs-row rs-top"><div class="rs-score" id="rsScore">' + scoreHtml() + '</div>' + modeBtns + '</div><div class="rs-row rs-tools">' + tools1 + tools2 + '</div>'
+        : '<div class="rs-score" id="rsScore">' + scoreHtml() + '</div><div class="rs-row">' + modeBtns + '</div><div class="rs-row tight">' + tools1 + '</div><div class="rs-row tight">' + rotateBtn() + tools2 + '</div>';
+      return '<div class="rs-toolbar' + (R.wide ? ' wide' : '') + (R.mode < 0 ? ' minus' : '') + '">' + head('' + I.note + ' 기록 입력', R.wide ? '<button class="rs-tool" data-act="rsClose">닫기</button>' : '', esc(R.date) + ' · ' + esc(R.day || '-') + ' · ' + R.game + '게임 · ' + I.pencil + ' ' + esc(recorder()) + (R.inMode === 'team' && my ? ' (' + esc(my.label) + '팀 담당)' : '')) +
+        bar + '</div>' +
         '<div class="' + (R.mode < 0 ? 'rs-minus' : '') + '" id="rsTables">' + tables + '</div>' +
         '<p class="ps-note mt8">＋ 또는 －를 고른 뒤 칸을 누르면 개수가 오르내립니다. <b>성공</b>을 누르면 <b>시도</b>도 자동으로 함께 올라갑니다. 선수 이름을 누르면 팀 이동·제외를 할 수 있습니다.' +
         (R.wide ? '' : ' <b>위 점수판에서 팀을 누르면</b> 그 팀 기록지로 바뀝니다.') + '</p><div class="rs-foot"><button class="rs-tool" data-act="rsClose">닫기</button></div>';
