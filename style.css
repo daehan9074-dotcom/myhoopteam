@@ -694,3 +694,53 @@ white-space:pre-wrap;line-height:22px;font-size:.84rem;color:#2b2f38}
 .att .ct.next .w small{opacity:.85}
 .st-sec.flash{animation:stflash 1.6s ease}
 @keyframes stflash{0%,40%{box-shadow:0 0 0 3px var(--accent)}100%{box-shadow:0 0 0 0 transparent}}
+/* 팀 색상: 주 색 ↔ 강조 색 바꾸기 */
+.th-custom{align-items:center}
+.th-swap{padding:6px 10px}
+.th-swap .i{width:1.1em;height:1.1em}
+/* 문의 (다른 팀·사람 → 대표): 접힌 줄 = 종류·보낸 사람·마지막 글, 펼치면 말풍선 */
+.mt-list .mt-hd{font-size:.8rem;font-weight:800;color:var(--green);margin-bottom:6px}
+.mt{border:1.5px solid var(--border);border-radius:11px;margin-top:8px;background:#fff;overflow:hidden}
+.mt.unread{border-color:var(--accent)}
+.mt summary{display:flex;align-items:center;gap:8px;padding:9px 11px;cursor:pointer;list-style:none}
+.mt summary::-webkit-details-marker{display:none}
+.mt[open] summary{border-bottom:1px solid #eceef2;background:var(--green-stripe)}
+.mt-type{flex:none;font-size:.68rem;font-weight:800;border-radius:6px;padding:2px 7px;color:#fff;background:#7b8391}
+.mt-type.t-guest{background:#2f6fb5}.mt-type.t-match{background:#c2410c}
+.mt-sum{display:flex;flex-direction:column;min-width:0}
+.mt-sum b{font-size:.86rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mt-sum small{font-size:.74rem;color:var(--label);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mt-new{flex:none;background:var(--accent);color:#fff;font-size:.64rem;font-weight:800;border-radius:20px;padding:1px 7px}
+.mt-at{flex:none;font-size:.68rem;color:var(--label)}
+.mt-body{padding:10px 11px 11px;background:#f7f8fa}
+.mt-m{display:flex;flex-direction:column;margin-bottom:8px;max-width:86%}
+.mt-m.me{margin-left:auto;align-items:flex-end}
+.mt-nm{font-size:.68rem;color:var(--label);margin-bottom:2px}
+.mt-b{background:#fff;border:1px solid #e3e6eb;border-radius:4px 13px 13px 13px;padding:7px 10px;font-size:.86rem;line-height:1.45;white-space:pre-wrap;word-break:break-word}
+.mt-m.me .mt-b{background:var(--green-light);border-color:transparent;border-radius:13px 4px 13px 13px}
+.mt-in textarea{min-height:60px;background:#fff}
+/* 임원 권한 */
+.perm-box{margin-top:10px;border:1.5px solid var(--border);border-radius:11px;padding:8px 12px 10px;background:var(--field)}
+.perm-box[hidden]{display:none}
+.perm-hd{display:flex;align-items:center;gap:6px;font-size:.8rem;font-weight:800;color:var(--green);margin-bottom:4px}
+.perm-hd span{font-weight:500;color:var(--label)}
+.perm-hd .linkbtn{margin-left:auto}
+.perm-row{display:flex;align-items:center;gap:8px;font-size:.86rem;padding:5px 0}
+.perm-row input{width:18px;height:18px;accent-color:var(--green)}
+.perm-chips{display:flex;flex-wrap:wrap;gap:6px}
+/* 현황 탭: 요일별 참석자를 팀 편성 참가자처럼 G·F·C 줄로 */
+.st-pool{border:1px solid #e3e6eb;border-radius:11px;background:#fff;padding:0 10px;margin:6px 0 8px}
+.st-pick span{display:inline-flex;align-items:center;padding:6px 11px;border-radius:20px;border:1.5px solid var(--green);background:var(--green);color:#fff;font-size:.84rem;font-weight:600}
+.st-pick span.guest{background:var(--orange);border-color:var(--orange)}
+.st-pick span small{font-weight:500;opacity:.85;margin-left:3px}
+.st-line .tg-cnt{align-self:center}
+/* PC(넓은 화면): 선수 기록·선수별·날짜별 표가 가로 스크롤 없이 모든 열이 보이게 — 창을 넓히고 칸 여백을 줄인다 */
+@media(min-width:900px){
+  body:not(.rot) .full-in{max-width:1500px}
+  body:not(.rot) #full .ps-tbl th,body:not(.rot) #full .ps-tbl td{padding-left:5px;padding-right:5px}
+  body:not(.rot) #full .ps-tbl th{white-space:normal;word-break:keep-all} /* 머리줄 설명('자유투 성공률' 등)은 두 줄로 접어 칸 폭을 줄인다 */
+}
+@media(min-width:900px) and (max-width:1180px){
+  body:not(.rot) #full .ps-tbl{font-size:.74rem}
+  body:not(.rot) #full .ps-tbl th{font-size:.68rem}
+}

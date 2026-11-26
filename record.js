@@ -2,7 +2,7 @@
  *  기록 입력(기록지) · 선수 기록 · 날짜별 보기 · 영상 링크 · 가로 보기
  *  코모도 참석자 웹페이지의 같은 화면을 그대로 옮긴 것.
  *  웹페이지의 '넓은 창'은 여기서 화면 전체를 덮는 창(#full), 그 위의 작은 팝업은 app.js 의 modal() 을 쓴다.
- *  웹과 다른 점: 기록자 = 로그인한 내 이름, 관리자 비밀번호 대신 팀 대표·관리자 권한.
+ *  웹과 다른 점: 기록자 = 로그인한 내 이름, 관리자 비밀번호 대신 팀 대표·임원 권한.
  * ========================================================= */
 (function () {
   'use strict';
@@ -188,8 +188,8 @@
     if (!g) return;
     const v = vidFind(S.vid, g.date, g.gameNo);
     modal('<h3>' + esc(g.date) + ' · ' + g.gameNo + '게임' + (v ? ' ' + vidLink(v, '영상') : '') + '</h3>' + g.teams.map((team) => gameTable(g, team)).join('') +
-      '<div class="acts">' + (t.isMember && (t.isAdmin || g.date === today()) ? '<button class="btn line" data-act="geEdit" data-id="' + g.id + '">고치기</button>' : '') +
-      (t.isAdmin ? '<button class="btn danger" data-act="gDel" data-id="' + g.id + '">삭제</button>' : '') + '<button class="btn gray" data-act="closeModal">닫기</button></div>');
+      '<div class="acts">' + (t.isMember && ((t.perms || []).includes('records') || g.date === today()) ? '<button class="btn line" data-act="geEdit" data-id="' + g.id + '">고치기</button>' : '') +
+      ((t.perms || []).includes('records') ? '<button class="btn danger" data-act="gDel" data-id="' + g.id + '">삭제</button>' : '') + '<button class="btn gray" data-act="closeModal">닫기</button></div>');
   };
   A.gDel = async (el) => {
     if (!(await C.confirmBox('경기 기록 삭제', '이 경기 기록을 지울까요? 되돌릴 수 없습니다.', '삭제', true))) return;
@@ -221,8 +221,8 @@
   const sGet = (key) => R.stats[key] || (R.stats[key] = blank());
   const teamAt = (i) => R.teams[i] || null;
   const hasInput = (stats) => Object.keys(stats || {}).some((n) => KEYS.some((k) => (stats[n][k] || 0) > 0));
-  /* 당일 제한: 팀원은 경기 당일 기록만 입력·수정. 지난 날짜는 대표·관리자만 (서버도 같은 기준으로 한 번 더 막는다) */
-  const canEdit = (date) => S.team.isAdmin || date === today();
+  /* 당일 제한: 팀원은 경기 당일 기록만 입력·수정. 지난 날짜는 대표·임원만 (서버도 같은 기준으로 한 번 더 막는다) */
+  const canEdit = (date) => (S.team.perms || []).includes('records') || date === today();
   /* 오늘 날짜에 해당하는 모임 요일. 없으면 'O요일' */
   function todayDay() {
     const d = S.team.days.find((x) => x.date === today());
@@ -287,7 +287,7 @@
   };
   function askResume(d) {
     modal('<h3>이어서 입력할까요?</h3><p class="muted">저장하지 않은 기록이 남아 있습니다.</p>' + resumeInfo(d) +
-      (canEdit(d.date) ? '' : '<div class="rs-warn mt8">지난 날짜 기록이라 저장은 <b>대표·관리자</b>만 할 수 있습니다.</div>') +
+      (canEdit(d.date) ? '' : '<div class="rs-warn mt8">지난 날짜 기록이라 저장은 <b>대표·임원</b>만 할 수 있습니다.</div>') +
       '<div class="acts"><button class="btn gray" data-act="rsDropAsk">새로 시작</button><button class="btn" data-act="rsResume">이어서 입력</button></div>').dataset.lock = '1';
   }
   A.rsResume = () => {
@@ -399,8 +399,8 @@
       R.dayGames = (await Api.listGames(t.id)).filter((g) => g.date === R.date).sort((a, b) => a.gameNo - b.gameNo);
       autoGame();
       const dayBtns = t.days.map((d) => '<button data-act="rsPickDay" data-id="' + d.id + '" class="' + (!R.past && R.dayId === d.id ? 'on' : '') + '">' + esc(d.title) + (d.date === td ? ' (오늘)' : '') + '</button>').join('') || '<span class="muted">농구하는 날이 설정되지 않았습니다</span>';
-      const pastBtn = '<button data-act="rsPastGate" class="' + (R.past ? 'on' : '') + '">' + I.calendar + ' 지난 경기' + (t.isAdmin ? ' 입력' : ' (관리자)') + '</button>';
-      const lock = canEdit(R.date) ? '' : '<div class="rs-warn">팀원은 <b>경기 당일(' + esc(td) + ')</b> 기록만 입력·수정할 수 있습니다.<br>지난 기록은 대표·관리자에게 부탁하세요.</div>';
+      const pastBtn = '<button data-act="rsPastGate" class="' + (R.past ? 'on' : '') + '">' + I.calendar + ' 지난 경기' + ((t.perms || []).includes('records') ? ' 입력' : ' (대표·임원)') + '</button>';
+      const lock = canEdit(R.date) ? '' : '<div class="rs-warn">팀원은 <b>경기 당일(' + esc(td) + ')</b> 기록만 입력·수정할 수 있습니다.<br>지난 기록은 대표·임원에게 부탁하세요.</div>';
       const who = '<span class="rs-who">' + I.pencil + ' ' + esc(recorder()) + ' · ' + (R.inMode === 'team' ? '팀별' : '혼자') + '<button data-act="rsToStart">변경</button></span>';
       const emptyPast = R.past && R.teams.length && !R.teams.some((x) => x.members.length) ? '<div class="rs-warn">이 날짜로 저장된 팀이 없습니다. 아래에서 팀을 직접 입력해 주세요.</div>' : '';
       const from = R.loadedFrom ? '<div class="rs-warn">' + esc(R.date) + ' 로 저장된 팀이 없어 <b>' + esc(R.loadedFrom) + '</b> 배정을 대신 불러왔습니다.<br>기록은 <b>' + esc(R.date) + '</b> 로 저장됩니다.</div>' : '';
@@ -437,11 +437,11 @@
     Object.assign(R, { past: false, gameTouched: false, dayId: d.id, day: d.title, date: d.date });
     loadTeams();
   };
-  /* 지난 경기는 대표·관리자만 입력·수정한다. 달력으로 날짜를 고른 뒤 그 날의 팀을 불러온다.
+  /* 지난 경기는 대표·임원만 입력·수정한다. 달력으로 날짜를 고른 뒤 그 날의 팀을 불러온다.
      저장된 팀이 없는 날짜도 고를 수 있고, 그 경우 빈 팀이 만들어져 바로 배정할 수 있다. */
   A.rsPastGate = async () => {
     const t = S.team;
-    if (!t.isAdmin) { toast('지난 경기 기록은 대표·관리자만 입력·수정할 수 있습니다', 'error'); return; }
+    if (!(t.perms || []).includes('records')) { toast('지난 경기 기록은 대표나 권한을 받은 임원만 입력·수정할 수 있습니다', 'error'); return; }
     const marks = {};
     (await Api.lineupDates(t.id)).forEach((x) => { marks[x[0]] = x[1] || ''; });
     Stats.dates(await Api.listGames(t.id)).forEach((d) => { if (!(d in marks)) marks[d] = ''; });
@@ -509,7 +509,7 @@
   A.rsColorDlg = colorDialog;
   A.rsStart = () => {
     if (!R.date) { toast('날짜를 선택해 주세요', 'error'); return; }
-    if (!canEdit(R.date)) { toast('당일 경기만 입력할 수 있습니다 (지난 경기는 대표·관리자)', 'error'); return; }
+    if (!canEdit(R.date)) { toast('당일 경기만 입력할 수 있습니다 (지난 경기는 대표·임원)', 'error'); return; }
     if (R.inMode === 'team') {
       const t = teamAt(R.match[0]);
       if (!t) { toast('기록할 팀을 선택해 주세요', 'error'); return; }
@@ -697,7 +697,7 @@
     if (R.busy) return;
     const teams = R.match.map(teamAt).filter(Boolean).map((t) => ({ name: t.label, color: t.color || '', players: t.members.map((m) => ({ key: m.key, name: m.name, guest: m.guest, position: m.position })) }));
     if (!teams.some((t) => t.players.length)) { toast('저장할 선수가 없습니다', 'error'); return; }
-    if (!canEdit(R.date)) { modal('<p class="muted">팀원은 경기 당일 기록만 저장할 수 있습니다.<br>지난 기록은 대표·관리자가 저장합니다.<br>(입력 내용은 기기에 임시 저장되어 있습니다)</p><div class="acts"><button class="btn" data-act="closeModal">확인</button></div>'); return; }
+    if (!canEdit(R.date)) { modal('<p class="muted">팀원은 경기 당일 기록만 저장할 수 있습니다.<br>지난 기록은 대표나 임원이 저장합니다.<br>(입력 내용은 기기에 임시 저장되어 있습니다)</p><div class="acts"><button class="btn" data-act="closeModal">확인</button></div>'); return; }
     R.busy = true;
     try {
       const r = await Api.saveGame(S.team.id, { date: R.date, day: R.day, gameNo: R.game, teams, stats: R.stats, scope: R.inMode === 'team' ? 'team' : 'all' });

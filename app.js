@@ -1,7 +1,7 @@
 /* 나의 농구팀 — 화면 코드 (데이터는 data.js 의 Api 로만 주고받는다) */
 (function () {
   'use strict';
-  const VERSION = '0.8.0';
+  const VERSION = '0.9.0';
   const PRIVACY_URL = 'privacy.html';
   const $ = (s, r) => (r || document).querySelector(s);
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -9,7 +9,8 @@
   const platform = cap && cap.getPlatform ? cap.getPlatform() : 'web';
   const isIOS = platform === 'ios' || /[?&]ios=1/.test(location.search);
   const U = Api.util;
-  const ROLE = { owner: '대표', admin: '관리자', member: '팀원' };
+  const ROLE = { owner: '대표', admin: '임원', member: '팀원' };
+  const can = (t, k) => !!(t && t.perms && t.perms.includes(k)); // 대표 = 모든 권한, 임원 = 대표가 준 권한
   const PROVIDER = { kakao: '카카오', google: 'Google', apple: 'Apple', nick: '아이디·비밀번호' };
   const G_LOGO = '<svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.4 30.3 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.9 6.2C12.4 13.7 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 3-2.3 5.5-4.8 7.2l7.7 6c4.5-4.200 6.900-10.300 6.900-17.700z"/><path fill="#FBBC05" d="M10.500 28.600c-.5-1.400-.8-3-.8-4.600s.3-3.200.8-4.600l-7.900-6.200C1 16.500 0 20.100 0 24s1 7.500 2.600 10.800l7.900-6.200z"/><path fill="#34A853" d="M24 48c6.500 0 11.900-2.100 15.900-5.800l-7.700-6c-2.200 1.500-4.900 2.300-8.200 2.300-6.300 0-11.600-4.200-13.500-9.900l-7.900 6.200C6.500 42.600 14.600 48 24 48z"/></svg>';
   /* 팀 로고(없으면 팀 이름 첫 글자) */
@@ -375,10 +376,10 @@
       case 'lineup': body = await lineupHtml(t); break;
       case 'games': body = await Ext.gamesHtml(t); break;
       case 'admin': body = await adminHtml(t); break;
-      default: body = infoHtml(t);
+      default: body = await infoHtml(t);
     }
     return teamBarHtml(t) +
-      '<div class="tabs">' + tabs.map((x) => '<button class="tab ' + (x[0] === r.tab ? 'on' : '') + '" data-act="tab" data-v="' + x[0] + '">' + x[1] + (x[0] === 'admin' && t.pendingCount ? '<span class="dot">' + t.pendingCount + '</span>' : '') + '</button>').join('') + '</div>' +
+      '<div class="tabs">' + tabs.map((x) => '<button class="tab ' + (x[0] === r.tab ? 'on' : '') + '" data-act="tab" data-v="' + x[0] + '">' + x[1] + (x[0] === 'admin' && (t.pendingCount || t.msgUnread) ? '<span class="dot">' + ((t.pendingCount || 0) + (t.msgUnread || 0)) + '</span>' : '') + '</button>').join('') + '</div>' +
       '<main>' + body + '</main>';
   }
 
@@ -438,16 +439,50 @@
   }
 
   /* ----- 다른 팀이 보는 팀 소개 ----- */
-  function infoHtml(t) {
+  async function infoHtml(t) {
     const st = t.my ? t.my.status : '';
+    const msgs = await Api.listMessages(t.id).catch(() => []);
     const join = st === 'pending'
-      ? '<div class="card"><h2>' + I.hourglass + ' 가입 승인 대기 중</h2><p class="muted">대표나 관리자가 수락하면 참석 체크·팀 편성·기록 입력을 쓸 수 있습니다.</p><button class="btn gray block mt12" data-act="cancelJoin">신청 취소</button></div>'
-      : '<div class="card"><h2>' + I.userPlus + ' 이 팀에 가입하기</h2><p class="muted">가입 신청을 보내면 대표·관리자가 수락한 뒤 팀원이 됩니다.</p><button class="btn block mt12" data-act="joinDlg">가입 신청</button></div>';
-    return join +
+      ? '<div class="card"><h2>' + I.hourglass + ' 가입 승인 대기 중</h2><p class="muted">대표나 임원이 수락하면 참석 체크·팀 편성·기록 입력을 쓸 수 있습니다.</p><button class="btn gray block mt12" data-act="cancelJoin">신청 취소</button></div>'
+      : '<div class="card"><h2>' + I.userPlus + ' 이 팀에 가입하기</h2><p class="muted">가입 신청을 보내면 대표나 임원이 수락한 뒤 팀원이 됩니다. 다른 팀에 소속돼 있어도 함께 가입할 수 있습니다.</p><button class="btn block mt12" data-act="joinDlg">가입 신청</button></div>';
+    return join + inquiryCard(t, msgs) +
       '<div class="card"><h2>' + I.clipboard + ' 팀 소개</h2><div class="row" style="margin-bottom:10px">' + teamAv(t.logo, t.name, 'lg') + '<div><b>' + esc(t.name) + '</b><div class="row mt8">' + (kbaChip(t.kba) || '<span class="chip gray">협회 미등록</span>') + '</div></div></div><p class="notice">' + (t.intro ? esc(t.intro) : '<span class="empty">소개 글이 없습니다.</span>') + '</p>' +
       '<p class="muted mt12">농구하는 날: ' + (t.days.map((d) => esc(Api.WEEKDAYS[d.weekday] + ' ' + d.time + (d.end ? '~' + d.end : '') + (d.place ? ' ' + d.place : ''))).join(' / ') || '-') + '</p></div>' +
       '<div class="card"><h2>' + I.lock + ' 팀원 전용</h2><div class="lock">공지사항·한마디·회비 정보는 팀원에게만 보입니다.</div></div>' +
       membersCard(t, false);
+  }
+  /* ----- 문의 (다른 팀·사람 → 대표) ----- */
+  const msgTypeLabel = (k) => ((Api.MSG_TYPES || []).find((x) => x[0] === k) || [k, '문의'])[1];
+  /* 대화 하나: 처음 문의 + 답장들 + 답장 칸. staff = 대표·임원이 보는 화면 */
+  function msgThread(t, m, staff) {
+    const open = S.cache.msgOpen === m.id;
+    const bub = (who, name, body, at, side) => '<div class="mt-m ' + side + '"><div class="mt-nm">' + esc(name) + ' · ' + fmtTime(at) + '</div><div class="mt-b">' + esc(body) + '</div></div>';
+    const mySide = (by) => ((staff ? by === 'team' : by === 'user') ? 'me' : 'you');
+    const last = m.replies.length ? m.replies[m.replies.length - 1] : null;
+    return '<details class="mt' + (m.unread ? ' unread' : '') + '" data-msg="' + m.id + '"' + (open ? ' open' : '') + '><summary>' +
+      '<span class="mt-type t-' + esc(m.type) + '">' + esc(msgTypeLabel(m.type)) + '</span>' +
+      '<span class="grow mt-sum"><b>' + esc(staff ? m.name + (m.fromTeam ? ' · ' + m.fromTeam : '') : (last && last.by === 'team' ? '답장이 왔습니다' : '보낸 문의')) + '</b><small>' + esc((last ? last.body : m.body).slice(0, 40)) + '</small></span>' +
+      (m.unread ? '<span class="mt-new">새 글</span>' : '') + '<span class="mt-at">' + fmtTime(m.lastAt) + '</span></summary>' +
+      '<div class="mt-body">' + bub('user', m.name + (m.fromTeam ? ' (' + m.fromTeam + ')' : ''), m.body, m.at, staff ? 'you' : 'me') +
+      m.replies.map((r) => bub(r.by, r.name, r.body, r.at, mySide(r.by))).join('') +
+      '<div class="mt-in"><textarea class="in" id="mr-' + m.id + '" maxlength="1000" placeholder="' + (staff ? '답장 쓰기' : '이어서 쓰기') + '"></textarea>' +
+      '<div class="row mt8"><button class="btn gray sm" data-act="msgDel" data-id="' + m.id + '">삭제</button><button class="btn sm" style="margin-left:auto" data-act="msgReply" data-id="' + m.id + '">' + (staff ? '답장 보내기' : '보내기') + '</button></div></div></div></details>';
+  }
+  /* 팀 소개 화면(다른 팀 사람)의 '대표에게 문의하기' + 내가 보낸 문의 */
+  function inquiryCard(t, msgs) {
+    const ty = S.cache.msgType || 'guest';
+    return '<div class="card"><h2>' + I.chat + ' 대표에게 문의하기</h2><p class="muted">게스트로 함께 뛸 수 있는지, 교류전(연습 경기)을 할 수 있는지 등을 이 팀 대표에게 물어볼 수 있습니다. 답장은 이 화면과 <b>내 정보 › 보낸 문의</b>에서 봅니다.</p>' +
+      '<div class="seg mt12" id="msgTypeSeg">' + (Api.MSG_TYPES || []).map((x) => '<button data-act="msgType" data-v="' + x[0] + '" class="' + (ty === x[0] ? 'on' : '') + '">' + esc(x[1]) + '</button>').join('') + '</div>' +
+      '<textarea class="in mt8" id="msgBody" maxlength="1000" placeholder="' + ({ guest: '예: 이번 주 수요일에 게스트로 참여할 수 있을까요? 포지션은 가드입니다.', match: '예: 저희 팀(8명)과 다음 달 토요일 오전에 교류전 가능할까요?' }[ty] || '문의 내용을 적어 주세요') + '"></textarea>' +
+      '<button class="btn block mt8" data-act="msgSend">문의 보내기</button>' +
+      (msgs.length ? '<div class="mt-list mt12"><div class="mt-hd">내가 보낸 문의 ' + msgs.length + '건</div>' + msgs.map((m) => msgThread(t, m, false)).join('') + '</div>' : '') + '</div>';
+  }
+  /* 관리 탭: 받은 문의 */
+  function inboxCard(t, msgs) {
+    const n = msgs.filter((m) => m.unread).length;
+    return '<div class="card" id="inbox"><h2>' + I.chat + ' 받은 문의 ' + msgs.length + '건' + (n ? ' <span class="chip warn">새 글 ' + n + '</span>' : '') + '</h2>' +
+      '<p class="muted">다른 팀·사람이 팀 찾기에서 보낸 게스트 참여·교류전 문의입니다. 눌러서 읽고 답장하세요.</p>' +
+      (msgs.length ? '<div class="mt-list mt8">' + msgs.map((m) => msgThread(t, m, true)).join('') + '</div>' : '<p class="empty">받은 문의가 없습니다.</p>') + '</div>';
   }
   /* 팀원 목록: 기본(역할·회원 구분) · 포지션(G-F-C) · 나이 · 확인 항목(회비 등)별로 정렬. 같은 버튼을 한 번 더 누르면 반대로 */
   function membersCard(t, clickable) {
@@ -583,12 +618,20 @@
     const regular = t.members.filter((m) => m.memberType === '정회원');
     const notVoted = regular.filter((m) => !voted[m.userId]).map((m) => m.name);
     const nx = nextDayId(t);
+    const posOf = (uid) => { const m = t.members.find((x) => x.userId === uid); return m && TG_POS.includes(m.position) ? m.position : ''; };
     const secs = t.days.map((d) => {
-      const yes = a.list.filter((x) => x.days.includes(d.id)).map((x) => x.name + (x.memberType !== '정회원' ? '(' + x.memberType + ')' : ''));
+      // 참석자: 팀 편성 참가자처럼 G → F → C → 미정 줄로 나누고 이름 앞에 포지션 글자
+      const ppl = a.list.filter((x) => x.days.includes(d.id)).map((x) => ({ name: x.name, pos: posOf(x.userId), guest: x.memberType !== '정회원', type: x.memberType }));
+      const n = { '가드': 0, '포워드': 0, '센터': 0, '': 0 }; ppl.forEach((p) => { n[p.pos]++; });
+      const rows = ['가드', '포워드', '센터', ''].map((pos) => {
+        const g = ppl.filter((p) => p.pos === pos).sort((x, y) => x.name.localeCompare(y.name, 'ko'));
+        return g.length ? '<div class="tg-pos-row"><div class="pick st-pick">' + g.map((p) => '<span class="on' + (p.guest ? ' guest' : '') + '">' + posTag(p.pos) + esc(p.name) + (p.guest ? ' <small>(' + esc(p.type) + ')</small>' : '') + '</span>').join('') + '</div></div>' : '';
+      }).join('');
       const no = regular.filter((m) => voted[m.userId] && !voted[m.userId].days.includes(d.id)).map((m) => m.name);
       return '<div class="st-sec' + (d.id === nx ? ' next' : (d.passed ? ' past' : '')) + '" id="st-' + d.id + '">' +
         '<h3>' + esc(d.title) + (d.place ? ' <span class="muted">' + esc(d.place) + '</span>' : '') + (d.passed ? ' <span class="muted">· 지난 날</span>' : '') + '</h3>' +
-        '<div class="st-line"><span class="tag yes">참석 ' + yes.length + '</span>' + (esc(yes.join(', ')) || '-') + '</div>' +
+        '<div class="st-line"><span class="tag yes">참석 ' + ppl.length + '</span>' + (ppl.length ? '<span class="tg-cnt">G ' + n['가드'] + ' · F ' + n['포워드'] + ' · C ' + n['센터'] + (n[''] ? ' · 미정 ' + n[''] : '') + '</span>' : '-') + '</div>' +
+        (rows ? '<div class="st-pool">' + rows + '</div>' : '') +
         '<div class="st-line"><span class="tag no">불참 ' + no.length + '</span>' + (esc(no.join(', ')) || '-') + '</div></div>';
     }).join('');
     return summaryCard(t, a) + '<div class="card"><h2>' + I.calendar + ' 요일별 현황</h2>' + secs +
@@ -984,30 +1027,48 @@
   }
   /* ----- 관리 ----- */
   async function adminHtml(t) {
-    const reqs = await Api.pendingRequests(t.id);
-    return '<div class="card"><h2>' + I.userPlus + ' 가입 신청 ' + reqs.length + '건</h2>' + (reqs.length ? reqs.map((r) => '<div class="mem"><div class="no">' + initial(r.profile.name) + '</div><div class="grow"><div class="nm">' + esc(r.profile.name) + ' <span class="muted" style="font-weight:500">가입 이름: ' + esc(r.nickname) + '</span></div><div class="ds">' + esc([r.profile.position, r.profile.number ? r.profile.number + '번' : '', r.profile.birthYear ? r.profile.birthYear + '년생' : ''].filter(Boolean).join(' · ') || '추가 정보 없음') + (r.message ? '<br>“' + esc(r.message) + '”' : '') + '</div></div>' +
-      '<button class="btn sm" data-act="reqOk" data-id="' + r.userId + '">수락</button><button class="btn gray sm" data-act="reqNo" data-id="' + r.userId + '">거절</button></div>').join('') : '<p class="empty">대기 중인 신청이 없습니다.</p>') + '</div>' +
-      teamLinkCard(t) +
-      '<div class="card"><h2>' + I.megaphone + ' 공지사항</h2><textarea class="in" id="admNotice" maxlength="2000" placeholder="팀원에게만 보이는 공지">' + esc(t.notice || '') + '</textarea><button class="btn block mt8" data-act="admNotice">공지 저장</button></div>' +
-      '<div class="card"><h2>' + I.calendar + ' 농구하는 날</h2><div id="admDays">' + dayRowsHtml(t.days) + '</div><div class="row mt8"><button class="btn line sm" data-act="dayAdd">+ 요일 추가</button><button class="btn sm" style="margin-left:auto" data-act="admDays">요일 저장</button></div>' +
-      '<button class="btn danger block mt12" data-act="admReset">이번 주 참석 체크 초기화</button><p class="muted mt8">주가 바뀌면(월요일) 참석 체크는 자동으로 새로 시작됩니다.</p></div>' +
-      '<div class="card"><h2>' + I.check + ' 확인 항목</h2><p class="muted">팀원마다 체크할 항목입니다. (예: 회비 납부, 선수등록, 보험 가입, 유니폼 수령) 팀원에게만 보입니다.</p><div id="admChecks">' + checkRowsHtml(t.checkItems) + '</div>' +
-      '<div class="row mt8"><button class="btn line sm" data-act="ckAdd">+ 항목 추가</button><button class="btn sm" style="margin-left:auto" data-act="ckSave">항목 저장</button></div></div>' +
-      membersCard(t, true).replace('<h2>' + I.users + '', '<h2>' + I.users + ' 눌러서 관리 ·') +
-      themeCardHtml(t) +
-      '<div class="card"><h2>' + I.gear + ' 팀 정보</h2><label class="f">팀 이름</label><input class="in" id="admName" maxlength="30" value="' + esc(t.name) + '">' + logoField(S.cache.logo !== undefined ? S.cache.logo : t.logo) + logoOptsHtml(t) +
+    // 대표는 모든 칸, 임원은 대표가 준 권한의 칸만
+    const reqs = can(t, 'join') ? await Api.pendingRequests(t.id) : null;
+    const msgs = can(t, 'msg') ? await Api.listMessages(t.id) : null;
+    const none = !t.perms.length ? '<div class="card"><h2>' + I.lock + ' 받은 권한이 없습니다</h2><p class="muted">임원으로 지정됐지만 아직 받은 권한이 없습니다. 대표에게 필요한 권한을 요청하세요.</p></div>' : '';
+    const mine = t.isOwner ? '' : '<div class="card"><h2>' + I.shield + ' 내 권한 (임원)</h2><div class="perm-chips">' + Api.PERMS.filter((p) => can(t, p[0])).map((p) => '<span class="chip">' + esc(p[1]) + '</span>').join('') + '</div></div>';
+    return none + (t.perms.length ? mine : '') + (msgs ? inboxCard(t, msgs) : '') + (reqs ? joinReqCard(reqs) : '') + teamLinkCard(t) +
+      (t.isOwner ? officersCard(t) : '') +
+      (can(t, 'notice') ? '<div class="card"><h2>' + I.megaphone + ' 공지사항</h2><textarea class="in" id="admNotice" maxlength="2000" placeholder="팀원에게만 보이는 공지">' + esc(t.notice || '') + '</textarea><button class="btn block mt8" data-act="admNotice">공지 저장</button></div>' : '') +
+      (can(t, 'schedule') ? '<div class="card"><h2>' + I.calendar + ' 농구하는 날</h2><div id="admDays">' + dayRowsHtml(t.days) + '</div><div class="row mt8"><button class="btn line sm" data-act="dayAdd">+ 요일 추가</button><button class="btn sm" style="margin-left:auto" data-act="admDays">요일 저장</button></div>' +
+        '<button class="btn danger block mt12" data-act="admReset">이번 주 참석 체크 초기화</button><p class="muted mt8">주가 바뀌면(월요일) 참석 체크는 자동으로 새로 시작됩니다.</p></div>' : '') +
+      (can(t, 'team') ? '<div class="card"><h2>' + I.check + ' 확인 항목</h2><p class="muted">팀원마다 체크할 항목입니다. (예: 회비 납부, 선수등록, 보험 가입, 유니폼 수령) 팀원에게만 보입니다.</p><div id="admChecks">' + checkRowsHtml(t.checkItems) + '</div>' +
+        '<div class="row mt8"><button class="btn line sm" data-act="ckAdd">+ 항목 추가</button><button class="btn sm" style="margin-left:auto" data-act="ckSave">항목 저장</button></div></div>' : '') +
+      (can(t, 'members') || can(t, 'join') || t.isOwner ? membersCard(t, true).replace('<h2>' + I.users + '', '<h2>' + I.users + ' 눌러서 관리 ·') : '') +
+      (can(t, 'team') ? themeCardHtml(t) + teamInfoCard(t) : (t.isOwner ? '<div class="card"><button class="btn danger block" data-act="admDelete">팀 삭제</button></div>' : ''));
+  }
+  /* 대표: 임원 지정·권한 (팀원 이름을 눌러 임원으로 바꾸고 권한을 고른다) */
+  function officersCard(t) {
+    const offs = t.members.filter((m) => m.role === 'admin');
+    return '<div class="card"><h2>' + I.shield + ' 임원 · 권한</h2><p class="muted">임원에게 필요한 권한만 골라 줄 수 있습니다. 아래 <b>팀원 목록</b>에서 이름을 눌러 임원으로 지정하고 권한을 고르세요. 대표는 모든 권한을 가집니다.</p>' +
+      (offs.length ? offs.map((m) => '<button class="mem" data-act="memDlg" data-id="' + m.userId + '"><div class="no">' + (m.number ? esc(m.number) : initial(m.name)) + '</div><div class="grow"><div class="row"><span class="nm">' + esc(m.name) + '</span><span class="chip">임원</span></div>' +
+        '<div class="ds">' + (m.perms && m.perms.length ? esc(Api.PERMS.filter((p) => m.perms.includes(p[0])).map((p) => p[1].split(' (')[0]).join(' · ')) : '<span style="color:var(--error)">권한 없음</span>') + '</div></div><span class="muted">›</span></button>').join('') : '<p class="empty">지정한 임원이 없습니다.</p>') + '</div>';
+  }
+  function teamInfoCard(t) {
+    return '<div class="card"><h2>' + I.gear + ' 팀 정보</h2><label class="f">팀 이름</label><input class="in" id="admName" maxlength="30" value="' + esc(t.name) + '">' + logoField(S.cache.logo !== undefined ? S.cache.logo : t.logo) + logoOptsHtml(t) +
       '<label class="f">대한민국농구협회 등록 팀</label><select class="in" id="admKba"><option value="yes"' + (t.kba === 'yes' ? ' selected' : '') + '>예 — 협회에 등록된 팀</option><option value="no"' + (t.kba !== 'yes' ? ' selected' : '') + '>아니오 — 등록하지 않은 동호회</option></select>' +
       '<label class="f">지역</label><select class="in" id="admSido">' + Api.SIDO.map((s) => '<option' + (t.sido === s ? ' selected' : '') + '>' + s + '</option>').join('') + '</select>' +
       '<label class="f">활동 지역·체육관</label><input class="in" id="admArea" maxlength="40" value="' + esc(t.area) + '">' +
       '<label class="f">팀 소개</label><textarea class="in" id="admIntro" maxlength="300">' + esc(t.intro) + '</textarea><button class="btn block mt8" data-act="admInfo">팀 정보 저장</button>' +
       (t.isOwner ? '<button class="btn danger block mt12" data-act="admDelete">팀 삭제</button>' : '') + '</div>';
   }
+  function joinReqCard(reqs) {
+    return '<div class="card"><h2>' + I.userPlus + ' 가입 신청 ' + reqs.length + '건</h2>' + (reqs.length ? reqs.map((r) => '<div class="mem"><div class="no">' + initial(r.profile.name) + '</div><div class="grow"><div class="nm">' + esc(r.profile.name) + ' <span class="muted" style="font-weight:500">가입 이름: ' + esc(r.nickname) + '</span></div><div class="ds">' + esc([r.profile.position, r.profile.number ? r.profile.number + '번' : '', r.profile.birthYear ? r.profile.birthYear + '년생' : ''].filter(Boolean).join(' · ') || '추가 정보 없음') + (r.message ? '<br>“' + esc(r.message) + '”' : '') + '</div></div>' +
+      '<button class="btn sm" data-act="reqOk" data-id="' + r.userId + '">수락</button><button class="btn gray sm" data-act="reqNo" data-id="' + r.userId + '">거절</button></div>').join('') : '<p class="empty">대기 중인 신청이 없습니다.</p>') + '</div>';
+  }
   /* 팀 색상 고르기 (고르면 바로 미리 보기, 저장해야 팀원 모두에게 적용) */
   function themeCardHtml(t) {
     const cur = S.cache.themeDraft || t.theme || DEF_THEME;
     return '<div class="card" id="thCard"><h2>' + I.shirt + ' 팀 색상</h2><p class="muted">팀 컬러에 맞춰 상단 바·버튼(<b>주 색</b>)과 아이콘·탭 밑줄·강조 표시(<b>강조 색</b>)를 바꿉니다. 저장하면 팀원 모두의 화면에 적용됩니다.</p>' +
       '<div class="theme-grid mt12">' + THEMES.map((x) => '<button class="theme-opt' + (cur.main === x[1] && cur.accent === x[2] ? ' on' : '') + '" data-act="thPick" data-m="' + x[1] + '" data-a="' + x[2] + '"><span class="th-sw"><i style="background:' + x[1] + '"></i><i style="background:' + x[2] + '"></i></span>' + esc(x[0]) + '</button>').join('') + '</div>' +
-      '<div class="th-custom mt12"><label>주 색 <input type="color" id="thMain" value="' + esc(cur.main) + '"></label><label>강조 색 <input type="color" id="thAccent" value="' + esc(cur.accent) + '"></label></div>' +
+      '<div class="th-custom mt12"><label>주 색 <input type="color" id="thMain" value="' + esc(cur.main) + '"></label>' +
+      '<button class="btn line sm th-swap" data-act="thSwap" title="주 색과 강조 색을 서로 바꿉니다">' + I.arrows + ' 바꾸기</button>' +
+      '<label>강조 색 <input type="color" id="thAccent" value="' + esc(cur.accent) + '"></label></div>' +
       '<p class="muted mt8">직접 고를 수도 있습니다. 주 색을 흰색처럼 밝게 고르면 상단 바는 그 색 그대로 칠하고 글자를 어둡게 바꾸며, 버튼은 강조 색으로 칠합니다.</p>' +
       '<div class="row mt12"><button class="btn gray sm" data-act="thPick" data-m="' + DEF_THEME.main + '" data-a="' + DEF_THEME.accent + '">기본 색으로</button><button class="btn sm" style="margin-left:auto" data-act="thSave">색상 저장</button></div></div>';
   }
@@ -1023,22 +1084,35 @@
     const m = t.members.find((x) => x.userId === userId);
     if (!m) return;
     const isMe = S.user && S.user.id === userId;
-    const bg = modal('<h3>' + esc(m.name) + ' <span class="chip">' + ROLE[m.role] + '</span></h3>' + profileFields(m, 'md') +
-      '<label class="f">회원 구분</label><select class="in" id="mdType">' + Api.MEMBER_TYPES.map((x) => '<option' + (m.memberType === x ? ' selected' : '') + '>' + x + '</option>').join('') + '</select>' +
-      (t.checkItems.length ? '<label class="f">확인 항목</label><div class="row" style="flex-wrap:wrap;gap:6px 16px">' + t.checkItems.map((c) => '<label class="row"><input type="checkbox" data-ck="' + esc(c.id) + '"' + (m.checks[c.id] ? ' checked' : '') + '> ' + esc(c.label) + '</label>').join('') + '</div>' : '') +
-      (t.isOwner && m.role !== 'owner' ? '<label class="f">역할</label><div class="seg" id="mdRole"><button data-v="member" class="' + (m.role === 'member' ? 'on' : '') + '">팀원</button><button data-v="admin" class="' + (m.role === 'admin' ? 'on' : '') + '">관리자</button></div>' : '') +
-      '<div class="acts"><button class="btn gray" data-x="0">취소</button><button class="btn" data-x="1">저장</button></div>' +
-      (!isMe && m.role !== 'owner' ? '<div class="row mt12">' + (t.isOwner ? '<button class="btn line sm grow" data-x="owner">대표 넘기기</button>' : '') + '<button class="btn danger sm grow" data-x="kick">팀에서 내보내기</button></div>' : ''));
+    const mem = can(t, 'members'), setRole = t.isOwner && m.role !== 'owner';
+    const kick = !isMe && m.role !== 'owner' && can(t, 'join') && (m.role !== 'admin' || t.isOwner);
+    const perms = m.perms || [];
+    const bg = modal('<h3>' + esc(m.name) + ' <span class="chip">' + ROLE[m.role] + '</span></h3>' +
+      (mem || isMe ? profileFields(m, 'md') : '<p class="muted">' + esc([m.position, m.number ? m.number + '번' : ''].filter(Boolean).join(' · ') || '추가 정보 없음') + '</p>') +
+      (mem ? '<label class="f">회원 구분</label><select class="in" id="mdType">' + Api.MEMBER_TYPES.map((x) => '<option' + (m.memberType === x ? ' selected' : '') + '>' + x + '</option>').join('') + '</select>' +
+        (t.checkItems.length ? '<label class="f">확인 항목</label><div class="row" style="flex-wrap:wrap;gap:6px 16px">' + t.checkItems.map((c) => '<label class="row"><input type="checkbox" data-ck="' + esc(c.id) + '"' + (m.checks[c.id] ? ' checked' : '') + '> ' + esc(c.label) + '</label>').join('') + '</div>' : '') : '') +
+      (setRole ? '<label class="f">역할</label><div class="seg" id="mdRole"><button data-v="member" class="' + (m.role === 'member' ? 'on' : '') + '">팀원</button><button data-v="admin" class="' + (m.role === 'admin' ? 'on' : '') + '">임원</button></div>' +
+        '<div class="perm-box" id="mdPerms"' + (m.role === 'admin' ? '' : ' hidden') + '><div class="perm-hd">임원 권한 <span>필요한 것만 고르세요</span><button class="linkbtn" data-x="pall">모두</button></div>' +
+        Api.PERMS.map((p) => '<label class="perm-row"><input type="checkbox" data-perm="' + p[0] + '"' + (m.role !== 'admin' || perms.includes(p[0]) ? ' checked' : '') + '> ' + esc(p[1]) + '</label>').join('') + '</div>' : '') +
+      '<div class="acts"><button class="btn gray" data-x="0">' + (mem || isMe || setRole ? '취소' : '닫기') + '</button>' + (mem || isMe || setRole ? '<button class="btn" data-x="1">저장</button>' : '') + '</div>' +
+      (!isMe && m.role !== 'owner' && (t.isOwner || kick) ? '<div class="row mt12">' + (t.isOwner ? '<button class="btn line sm grow" data-x="owner">대표 넘기기</button>' : '') + (kick ? '<button class="btn danger sm grow" data-x="kick">팀에서 내보내기</button>' : '') + '</div>' : ''));
     let role = m.role;
-    bg.querySelectorAll('#mdRole button').forEach((b) => (b.onclick = () => { role = b.dataset.v; bg.querySelectorAll('#mdRole button').forEach((x) => x.classList.toggle('on', x === b)); }));
+    bg.querySelectorAll('#mdRole button').forEach((b) => (b.onclick = () => { role = b.dataset.v; bg.querySelectorAll('#mdRole button').forEach((x) => x.classList.toggle('on', x === b)); const pb = $('#mdPerms'); if (pb) pb.hidden = role !== 'admin'; }));
+    const pall = bg.querySelector('[data-x="pall"]');
+    if (pall) pall.onclick = () => { const bs = [...bg.querySelectorAll('[data-perm]')], on = !bs.every((c) => c.checked); bs.forEach((c) => { c.checked = on; }); };
     bg.querySelector('[data-x="0"]').onclick = closeModal;
-    bg.querySelector('[data-x="1"]').onclick = async () => {
-      const patch = Object.assign(readProfile('md'), { memberType: $('#mdType').value, checks: [...bg.querySelectorAll('[data-ck]')].reduce((o, c) => { o[c.dataset.ck] = c.checked; return o; }, {}) });
-      if (t.isOwner && m.role !== 'owner' && role !== m.role) patch.role = role;
-      await run(Api.updateMember(t.id, userId, patch), '저장했습니다'); closeModal(); render();
+    const sv = bg.querySelector('[data-x="1"]');
+    if (sv) sv.onclick = async () => {
+      const patch = mem || isMe ? readProfile('md') : {};
+      if (mem) Object.assign(patch, { memberType: $('#mdType').value, checks: [...bg.querySelectorAll('[data-ck]')].reduce((o, c) => { o[c.dataset.ck] = c.checked; return o; }, {}) });
+      if (setRole) {
+        if (role !== m.role) patch.role = role;
+        if (role === 'admin') patch.perms = [...bg.querySelectorAll('[data-perm]')].filter((c) => c.checked).map((c) => c.dataset.perm);
+      }
+      await run(Api.updateMember(t.id, userId, patch), role === 'admin' && setRole ? '임원 권한을 저장했습니다' : '저장했습니다'); closeModal(); render();
     };
     const ow = bg.querySelector('[data-x="owner"]');
-    if (ow) ow.onclick = async () => { if (await confirmBox('대표 넘기기', esc(m.name) + ' 님에게 대표를 넘깁니다. 나는 관리자가 됩니다.', '넘기기')) { await run(Api.transferOwner(t.id, userId), '대표를 넘겼습니다'); render(); } };
+    if (ow) ow.onclick = async () => { if (await confirmBox('대표 넘기기', esc(m.name) + ' 님에게 대표를 넘깁니다. 나는 모든 권한을 가진 임원이 됩니다.', '넘기기')) { await run(Api.transferOwner(t.id, userId), '대표를 넘겼습니다'); render(); } };
     const kk = bg.querySelector('[data-x="kick"]');
     if (kk) kk.onclick = async () => { if (await confirmBox('팀에서 내보내기', esc(m.name) + ' 님을 팀에서 내보냅니다.', '내보내기', true)) { await run(Api.removeMember(t.id, userId), '내보냈습니다'); render(); } };
   }
@@ -1048,6 +1122,7 @@
    * ========================================================= */
   async function meHtml() {
     S.mems = await Api.myMemberships();
+    const inq = await Api.myInquiries().catch(() => []);
     const u = S.user;
     const st = { active: '', pending: '<span class="chip orange">승인 대기</span>' };
     return barHtml('내 정보', false) + '<main>' +
@@ -1056,6 +1131,8 @@
         (m.status === 'active' && !m.primary ? '<button class="btn line sm" data-act="setPrimary" data-id="' + m.teamId + '">기본 팀</button>' : '') +
         (m.status === 'active' ? '<button class="btn gray sm" data-act="leaveTeam" data-id="' + m.teamId + '">탈퇴</button>' : '<button class="btn gray sm" data-act="cancelJoinId" data-id="' + m.teamId + '">취소</button>') + '</div>').join('') : '<p class="empty">아직 소속된 팀이 없습니다.</p>') +
       '<button class="btn line block mt12" data-act="navExplore">' + I.search + ' 팀 찾기 · 만들기</button></div>' +
+      (inq.length ? '<div class="card"><h2>' + I.chat + ' 보낸 문의</h2><p class="muted">팀을 누르면 그 팀에 보낸 문의와 답장을 볼 수 있습니다.</p>' +
+        inq.map((x) => '<button class="mem" data-act="openTeam" data-id="' + esc(x.teamId) + '"><div class="grow"><div class="nm">' + esc(x.teamName) + '</div><div class="ds">' + esc(x.sido || '') + ' · ' + fmtTime(x.at) + ' 보냄</div></div><span class="muted">›</span></button>').join('') + '</div>' : '') +
       '<div class="card"><h2>' + I.info + ' 앱 정보</h2><div class="mem"><span class="grow">버전</span><span class="muted">' + VERSION + (Api.mode === 'local' ? ' (체험판)' : '') + '</span></div>' +
       '<a class="mem" href="' + PRIVACY_URL + '" target="_blank" style="color:inherit;text-decoration:none"><span class="grow">개인정보처리방침</span><span class="muted">›</span></a>' +
       (Api.mode === 'local' ? '<button class="mem" data-act="resetDemo"><span class="grow">체험 데이터 처음으로 되돌리기</span><span class="muted">›</span></button>' : '') + '</div>' +
@@ -1098,7 +1175,30 @@
       catch (e) { A.copyLink(); }
     },
     memSort: (el) => { const ms = S.cache.memSort; if (ms.k === el.dataset.v) ms.desc = !ms.desc; else { ms.k = el.dataset.v; ms.desc = false; } render(); },
+    // 문의: 종류 고르기 · 보내기 · 답장 · 지우기
+    msgType: (el) => {
+      S.cache.msgType = el.dataset.v;
+      document.querySelectorAll('#msgTypeSeg button').forEach((b) => b.classList.toggle('on', b === el));
+      const ta = $('#msgBody'); if (ta) ta.placeholder = { guest: '예: 이번 주 수요일에 게스트로 참여할 수 있을까요? 포지션은 가드입니다.', match: '예: 저희 팀(8명)과 다음 달 토요일 오전에 교류전 가능할까요?' }[el.dataset.v] || '문의 내용을 적어 주세요';
+    },
+    msgSend: async () => {
+      const b = $('#msgBody').value.trim();
+      if (!b) { toast('문의 내용을 입력하세요', 'error'); return; }
+      await run(Api.sendMessage(S.team.id, S.cache.msgType || 'guest', b), '문의를 보냈습니다. 답장은 이 화면과 내 정보에서 볼 수 있습니다');
+      render();
+    },
+    msgReply: async (el) => {
+      const id = el.dataset.id, ta = $('#mr-' + id), b = ta ? ta.value.trim() : '';
+      if (!b) { toast('내용을 입력하세요', 'error'); return; }
+      await run(Api.replyMessage(S.team.id, id, b), '보냈습니다');
+      S.cache.msgOpen = id; render();
+    },
+    msgDel: async (el) => {
+      if (!(await confirmBox('문의 지우기', '이 문의와 주고받은 글을 모두 지웁니다. 상대방에게서도 사라집니다.', '지우기', true))) return;
+      await run(Api.deleteMessage(S.team.id, el.dataset.id), '지웠습니다'); render();
+    },
     thPick: (el) => themePreview({ main: el.dataset.m, accent: el.dataset.a }),
+    thSwap: () => { const m = $('#thMain'), a = $('#thAccent'); if (m && a) themePreview({ main: a.value, accent: m.value }); }, // 주 색 ↔ 강조 색 (저장은 '색상 저장')
     thSave: async () => {
       const d = S.cache.themeDraft || S.team.theme || DEF_THEME;
       const theme = d.main === DEF_THEME.main && d.accent === DEF_THEME.accent ? null : { main: d.main, accent: d.accent };
@@ -1141,7 +1241,7 @@
       S.stack = []; go({ page: 'team', teamId: r.id, tab: 'admin' }, true);
     },
     joinDlg: () => {
-      const bg = modal('<h3>' + esc(S.team.name) + ' 가입 신청</h3>' + profileFields(null, 'jn') + '<label class="f">하고 싶은 말 (대표·관리자에게만 보임)</label><input class="in" id="jnMsg" maxlength="200" placeholder="예: 지인 소개로 왔습니다">' +
+      const bg = modal('<h3>' + esc(S.team.name) + ' 가입 신청</h3>' + profileFields(null, 'jn') + '<label class="f">하고 싶은 말 (대표·임원에게만 보임)</label><input class="in" id="jnMsg" maxlength="200" placeholder="예: 지인 소개로 왔습니다">' +
         '<div class="acts"><button class="btn gray" data-x="0">취소</button><button class="btn" data-x="1">신청 보내기</button></div>');
       bg.querySelector('[data-x="0"]').onclick = closeModal;
       bg.querySelector('[data-x="1"]').onclick = async () => { await run(Api.requestJoin(S.team.id, readProfile('jn'), $('#jnMsg').value), '가입 신청을 보냈습니다'); closeModal(); render(); };
@@ -1205,7 +1305,7 @@
     },
     myProfile: () => {
       const p = S.team.my.profile;
-      const bg = modal('<h3>이 팀에서의 내 정보</h3>' + profileFields(p, 'mp') + '<p class="muted mt8">확인 항목(회비 등)과 회원 구분은 관리자가 바꿉니다.</p><div class="acts"><button class="btn gray" data-x="0">취소</button><button class="btn" data-x="1">저장</button></div>');
+      const bg = modal('<h3>이 팀에서의 내 정보</h3>' + profileFields(p, 'mp') + '<p class="muted mt8">확인 항목(회비 등)과 회원 구분은 대표나 임원이 바꿉니다.</p><div class="acts"><button class="btn gray" data-x="0">취소</button><button class="btn" data-x="1">저장</button></div>');
       bg.querySelector('[data-x="0"]').onclick = closeModal;
       bg.querySelector('[data-x="1"]').onclick = async () => { await run(Api.updateMember(S.team.id, S.user.id, readProfile('mp')), '저장했습니다'); closeModal(); render(); };
     },
@@ -1435,6 +1535,17 @@
     }
     await home(true);
   }
+  // 문의를 펼치면 읽음으로 (다시 그리지 않고 표시만 지운다) · 펼친 문의는 다시 그려도 열어 둔다
+  document.addEventListener('toggle', (e) => {
+    const d = e.target;
+    if (!d.matches || !d.matches('details.mt')) return;
+    if (!d.open) { if (S.cache.msgOpen === d.dataset.msg) S.cache.msgOpen = null; return; }
+    S.cache.msgOpen = d.dataset.msg;
+    if (d.classList.contains('unread') && S.team) {
+      d.classList.remove('unread'); const n = d.querySelector('.mt-new'); if (n) n.remove();
+      Api.readMessage(S.team.id, d.dataset.msg).then(() => { if (S.team.msgUnread) S.team.msgUnread--; }).catch(() => { /* 다음에 다시 */ });
+    }
+  }, true);
   // 참석 탭 한마디 입력창: Enter = 전송
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && e.target.id === 'kkIn' && !e.isComposing) { e.preventDefault(); A.attChatSend().catch(() => { /* run() 이 이미 알림 */ }); }

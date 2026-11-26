@@ -13,10 +13,11 @@
   const L = window.Api;                 // 상수·날짜 도구는 그대로 쓴다
   const AUTH_KEY = 'myhoop.auth.v2';
   const FRESH_MS = 20000;
-  const BUNDLE_TEAM = ['getTeam', 'getAttendance', 'listGames', 'listVideos', 'listPosts', 'pendingRequests', 'lineupDates'];
+  const BUNDLE_TEAM = ['getTeam', 'getAttendance', 'listGames', 'listVideos', 'listPosts', 'pendingRequests', 'lineupDates', 'listMessages'];
   const BUNDLE_HOME = ['me', 'myMemberships'];
   const WRITES = ['setPrimary', 'createTeam', 'updateTeam', 'deleteTeam', 'requestJoin', 'cancelJoin', 'leaveTeam', 'decideJoin', 'updateMember', 'transferOwner', 'removeMember',
-    'submitAttendance', 'resetWeek', 'addPost', 'deletePost', 'addComment', 'deleteComment', 'saveGame', 'deleteGame', 'saveLineup', 'saveVideo'];
+    'submitAttendance', 'resetWeek', 'addPost', 'deletePost', 'addComment', 'deleteComment', 'saveGame', 'deleteGame', 'saveLineup', 'saveVideo',
+    'sendMessage', 'replyMessage', 'readMessage', 'deleteMessage'];
 
   let auth = null;
   try { auth = JSON.parse(localStorage.getItem(AUTH_KEY) || 'null'); } catch (e) { /* 저장소 막힘 */ }
@@ -83,8 +84,8 @@
     return clone(j.v);
   }
 
-  const Api = { mode: 'server', SIDO: L.SIDO, WEEKDAYS: L.WEEKDAYS, POSITIONS: L.POSITIONS, MEMBER_TYPES: L.MEMBER_TYPES, STAT_KEYS: L.STAT_KEYS, util: L.util };
-  ['me', 'myMemberships', 'getTeam', 'pendingRequests', 'getAttendance', 'listPosts', 'listGames', 'getLineup', 'lineupDates', 'listVideos'].forEach((fn) => { Api[fn] = function () { return read(fn, [].slice.call(arguments)); }; });
+  const Api = { mode: 'server', SIDO: L.SIDO, WEEKDAYS: L.WEEKDAYS, POSITIONS: L.POSITIONS, MEMBER_TYPES: L.MEMBER_TYPES, STAT_KEYS: L.STAT_KEYS, PERMS: L.PERMS, MSG_TYPES: L.MSG_TYPES, util: L.util };
+  ['me', 'myMemberships', 'myInquiries', 'getTeam', 'pendingRequests', 'getAttendance', 'listPosts', 'listGames', 'getLineup', 'lineupDates', 'listVideos', 'listMessages'].forEach((fn) => { Api[fn] = function () { return read(fn, [].slice.call(arguments)); }; });
   WRITES.forEach((fn) => { Api[fn] = function () { return write(fn, [].slice.call(arguments)); }; });
   Api.me = async () => { if (!auth) return null; try { return await read('me', []); } catch (e) { if (!auth) return null; throw e; } };
   /* 팀 찾기: 지역·검색어로 서버가 거른다 (같은 조건은 20초 동안 다시 묻지 않는다) */

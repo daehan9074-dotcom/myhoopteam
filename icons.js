@@ -34,7 +34,8 @@
     shirt: '<path d="M8 3 3 6l2 4 2-1v11h10V9l2 1 2-4-5-3a4 4 0 0 1-8 0z"/>',
     undo: '<path d="M8 5 3 10l5 5M3 10h11a5.500 5.500 0 0 1 0 11h-3"/>',
     video: '<rect x="3" y="6" width="13" height="12" rx="2"/><path d="m16 10 5-3v10l-5-3"/>',
-    arrows: '<path d="M4 12h16M8 8l-4 4 4 4M16 8l4 4-4 4"/>'
+    arrows: '<path d="M4 12h16M8 8l-4 4 4 4M16 8l4 4-4 4"/>',
+    shield: '<path d="M12 3l8 3v6c0 4.500-3.400 8-8 9-4.600-1-8-4.500-8-9V6z"/><path d="m9 12 2 2 4-4"/>'
   };
   const I = {};
   Object.keys(P).forEach((k) => { I[k] = '<svg class="i" viewBox="0 0 24 24" aria-hidden="true">' + P[k] + '</svg>'; });

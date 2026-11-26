@@ -17,6 +17,18 @@
   const MEMBER_TYPES = ['정회원', '게스트', '휴식회원'];
   // 코모도 웹페이지 기록지와 같은 13종: ~m = 성공, ~a = 시도, tov = 턴오버, pf = 반칙, bc = 바스켓카운트
   const STAT_KEYS = ['p2m', 'p2a', 'p3m', 'p3a', 'ftm', 'fta', 'reb', 'ast', 'stl', 'blk', 'tov', 'pf', 'bc'];
+  // 임원 권한 (대표가 사람마다 골라 준다)
+  const PERMS = [
+    ['notice', '공지사항 쓰기'],
+    ['join', '가입 신청 수락·팀원 내보내기'],
+    ['members', '팀원 관리 (회원 구분·회비 등 확인 항목)'],
+    ['schedule', '농구하는 날 바꾸기·참석 체크 초기화'],
+    ['team', '팀 정보·로고·색상·확인 항목 바꾸기'],
+    ['records', '지난 경기 기록 입력·수정·삭제'],
+    ['msg', '받은 문의 보기·답장 (게스트·교류전 등)']
+  ];
+  // 다른 팀·사람이 대표에게 보내는 문의 종류
+  const MSG_TYPES = [['guest', '게스트 참여 문의'], ['match', '교류전 요청'], ['etc', '기타 문의']];
 
   /* ---------- 기본 도구 ---------- */
   const pad = (n) => String(n).padStart(2, '0');
@@ -102,8 +114,13 @@
   const memOf = (teamId, userId) => db.memberships.find((m) => m.teamId === teamId && m.userId === userId) || null;
   const myMem = (teamId) => { const u = me(); return u ? memOf(teamId, u.id) : null; };
   const isActive = (teamId) => { const m = myMem(teamId); return !!(m && m.status === 'active'); };
-  const isAdmin = (teamId) => { const m = myMem(teamId); return !!(m && m.status === 'active' && (m.role === 'owner' || m.role === 'admin')); };
+  // 대표 = 모든 권한. 임원(role 'admin') = 대표가 골라 준 권한(perms)만 (perms 가 없던 옛 관리자는 모든 권한)
+  const PERM_KEYS = PERMS.map((p) => p[0]);
+  const permsOf = (m) => (!m || m.status !== 'active' ? [] : m.role === 'owner' ? PERM_KEYS.slice() : m.role === 'admin' ? (Array.isArray(m.perms) ? m.perms.filter((k) => PERM_KEYS.includes(k)) : PERM_KEYS.slice()) : []);
+  const can = (teamId, perm) => permsOf(myMem(teamId)).includes(perm);
+  const isAdmin = (teamId) => { const m = myMem(teamId); return !!(m && m.status === 'active' && (m.role === 'owner' || m.role === 'admin')); }; // 관리 탭을 볼 수 있는 사람(대표·임원)
   const isOwner = (teamId) => { const m = myMem(teamId); return !!(m && m.status === 'active' && m.role === 'owner'); };
+  const prefsOf = (userId) => db.prefs[userId] || (db.prefs[userId] = {}); // 기본 팀·보낸 문의 등 (다른 값을 지우지 않게 고쳐 쓴다)
   const activeMembers = (teamId) => db.memberships.filter((m) => m.teamId === teamId && m.status === 'active');
   function needLogin() { if (!me()) throw new Error('로그인이 필요합니다'); }
   function team(teamId) { const t = db.teams[teamId]; if (!t) throw new Error('없는 팀입니다'); return t; }
@@ -111,7 +128,7 @@
   function profileOut(m, full) {
     const p = m.profile || {};
     const o = { userId: m.userId, role: m.role, name: p.name || '이름 없음', number: p.number || '', position: p.position || '', memberType: p.memberType || '정회원' };
-    if (full) { o.checks = Object.assign({}, p.checks); o.birthYear = p.birthYear || ''; o.joinedAt = m.joinedAt; }
+    if (full) { o.checks = Object.assign({}, p.checks); o.birthYear = p.birthYear || ''; o.joinedAt = m.joinedAt; if (m.role === 'admin') o.perms = permsOf(m); }
     return o;
   }
   function sortMembers(list) {
@@ -132,7 +149,7 @@
    * ========================================================= */
   const Api = {
     mode: 'local',
-    SIDO, WEEKDAYS, POSITIONS, MEMBER_TYPES, STAT_KEYS,
+    SIDO, WEEKDAYS, POSITIONS, MEMBER_TYPES, STAT_KEYS, PERMS, MSG_TYPES,
     util: { ymd, weekKey, dayView },
 
     /* ----- 로그인 (지금은 체험용 흉내. 실제는 카카오/애플 로그인 결과로 대체) ----- */
@@ -157,7 +174,7 @@
       });
       db.memberships = db.memberships.filter((m) => m.userId !== u.id);
       db.attendance = db.attendance.filter((a) => a.userId !== u.id);
-      db.posts.forEach((p) => { if (p.userId === u.id) { p.userId = null; p.name = '탈퇴 회원'; } (p.comments || []).forEach((c) => { if (c.userId === u.id) { c.userId = null; c.name = '탈퇴 회원'; } }); });
+      db.posts.forEach((p) => { if (p.userId === u.id) { p.userId = null; p.name = '탈퇴 회원'; p.fromTeam = ''; } (p.comments || []).concat(p.replies || []).forEach((c) => { if (c.userId === u.id) { c.userId = null; c.name = '탈퇴 회원'; } }); });
       db.games.forEach((g) => g.teams.forEach((t) => t.players.forEach((pl) => { if (pl.key === u.id) { pl.key = 'x_' + uid('d'); pl.name = '탈퇴 회원'; } })));
       delete db.users[u.id];
       if (db.prefs) delete db.prefs[u.id];
@@ -174,7 +191,9 @@
         role: m.role, status: m.status, primary: m.teamId === primary
       }));
     }),
-    setPrimary: wrap((teamId) => { needLogin(); if (!isActive(teamId)) throw new Error('소속 팀만 기본 팀으로 정할 수 있습니다'); db.prefs[me().id] = { primaryTeamId: teamId }; save(); return true; }),
+    setPrimary: wrap((teamId) => { needLogin(); if (!isActive(teamId)) throw new Error('소속 팀만 기본 팀으로 정할 수 있습니다'); prefsOf(me().id).primaryTeamId = teamId; save(); return true; }),
+    // 내가 문의를 보낸 팀 (내 정보 화면에서 다시 찾아가기용, 최근 순)
+    myInquiries: wrap(() => { const u = me(); if (!u) return []; return clone(((db.prefs[u.id] || {}).sent || []).slice().sort((a, b) => b.at - a.at)); }),
 
     /* ----- 팀 ----- */
     listTeams: wrap((opt) => {
@@ -198,12 +217,13 @@
         days: t.days.map(dayView),
         memberCount: activeMembers(teamId).length,
         my: m ? { status: m.status, role: m.role, profile: profileOut(m, true) } : null,
-        isMember: member, isAdmin: isAdmin(teamId), isOwner: isOwner(teamId),
+        isMember: member, isAdmin: isAdmin(teamId), isOwner: isOwner(teamId), perms: permsOf(m),
         // 다른 팀 사람에게는 공지·회비·선수등록을 내려주지 않는다
         notice: member ? (t.notice || '') : null,
         members: sortMembers(activeMembers(teamId).map((x) => profileOut(x, member)))
       };
-      if (v.isAdmin) v.pendingCount = db.memberships.filter((x) => x.teamId === teamId && x.status === 'pending').length;
+      if (can(teamId, 'join')) v.pendingCount = db.memberships.filter((x) => x.teamId === teamId && x.status === 'pending').length;
+      if (can(teamId, 'msg')) v.msgUnread = db.posts.filter((p) => p.teamId === teamId && p.kind === 'msg' && !p.readByTeam).length;
       return v;
     }),
     createTeam: wrap((data) => {
@@ -220,12 +240,17 @@
       };
       db.teams[t.id] = t;
       db.memberships.push({ teamId: t.id, userId: me().id, role: 'owner', status: 'active', joinedAt: Date.now(), message: '', profile: cleanProfile(data.profile, true) });
-      if (!(db.prefs[me().id] || {}).primaryTeamId) db.prefs[me().id] = { primaryTeamId: t.id };
+      if (!(db.prefs[me().id] || {}).primaryTeamId) prefsOf(me().id).primaryTeamId = t.id;
       save();
       return { id: t.id };
     }),
     updateTeam: wrap((teamId, patch) => {
-      if (!isAdmin(teamId)) throw new Error('관리자만 바꿀 수 있습니다');
+      // 바꾸려는 칸마다 그 권한이 있어야 한다 (공지 = notice, 요일 = schedule, 나머지 팀 정보 = team)
+      const need = (k) => { if (!can(teamId, k)) throw new Error('이 항목을 바꿀 권한이 없습니다. 대표에게 권한을 받으세요'); };
+      if (!isAdmin(teamId)) throw new Error('대표나 임원만 바꿀 수 있습니다');
+      if (patch.notice != null) need('notice');
+      if (patch.days) need('schedule');
+      if (['name', 'sido', 'area', 'intro', 'logo', 'kba', 'checkItems'].some((k) => patch[k] != null) || patch.theme !== undefined || patch.logoStyle !== undefined) need('team');
       const t = team(teamId);
       if (patch.name != null) { const n = clean(patch.name, 30); if (!n) throw new Error('팀 이름을 입력하세요'); t.name = n; }
       if (patch.sido != null) { if (!SIDO.includes(patch.sido)) throw new Error('지역을 선택하세요'); t.sido = patch.sido; }
@@ -274,20 +299,20 @@
       if (m.role === 'owner' && activeMembers(teamId).length > 1) throw new Error('대표는 다른 팀원에게 대표를 넘긴 뒤 나갈 수 있습니다');
       if (m.role === 'owner') removeTeamData(teamId);
       else { db.memberships.splice(db.memberships.indexOf(m), 1); db.attendance = db.attendance.filter((a) => !(a.teamId === teamId && a.userId === m.userId)); }
-      const pr = db.prefs[me().id]; if (pr && pr.primaryTeamId === teamId) delete db.prefs[me().id];
+      const pr = db.prefs[me().id]; if (pr && pr.primaryTeamId === teamId) delete pr.primaryTeamId;
       save();
       return true;
     }),
     pendingRequests: wrap((teamId) => {
-      if (!isAdmin(teamId)) throw new Error('관리자만 볼 수 있습니다');
+      if (!can(teamId, 'join')) throw new Error('가입 신청은 대표나 권한을 받은 임원만 볼 수 있습니다');
       return db.memberships.filter((m) => m.teamId === teamId && m.status === 'pending')
         .map((m) => ({ userId: m.userId, nickname: (db.users[m.userId] || {}).nickname || '', message: m.message, at: m.joinedAt, profile: profileOut(m, true) }));
     }),
     decideJoin: wrap((teamId, userId, approve) => {
-      if (!isAdmin(teamId)) throw new Error('관리자만 수락할 수 있습니다');
+      if (!can(teamId, 'join')) throw new Error('가입 신청은 대표나 권한을 받은 임원만 수락할 수 있습니다');
       const m = memOf(teamId, userId);
       if (!m || m.status !== 'pending') throw new Error('이미 처리된 신청입니다');
-      if (approve) { m.status = 'active'; m.joinedAt = Date.now(); if (!(db.prefs[userId] || {}).primaryTeamId) db.prefs[userId] = { primaryTeamId: teamId }; }
+      if (approve) { m.status = 'active'; m.joinedAt = Date.now(); if (!(db.prefs[userId] || {}).primaryTeamId) prefsOf(userId).primaryTeamId = teamId; }
       else db.memberships.splice(db.memberships.indexOf(m), 1);
       save();
       return true;
@@ -296,8 +321,9 @@
     /* ----- 팀원 관리 ----- */
     updateMember: wrap((teamId, userId, patch) => {
       const self = me() && me().id === userId;
-      const admin = isAdmin(teamId);
-      if (!admin && !(self && isActive(teamId))) throw new Error('권한이 없습니다');
+      const admin = can(teamId, 'members');
+      const roleOnly = patch && Object.keys(patch).every((k) => k === 'role' || k === 'perms');
+      if (!admin && !(self && isActive(teamId)) && !(roleOnly && isOwner(teamId))) throw new Error('권한이 없습니다');
       const m = memOf(teamId, userId);
       if (!m || m.status !== 'active') throw new Error('팀원이 아닙니다');
       const p = m.profile || (m.profile = {});
@@ -312,10 +338,12 @@
           (t.checkItems || []).forEach((it) => { if (patch.checks[it.id] != null) c[it.id] = !!patch.checks[it.id]; });
         }
       }
-      if (patch.role != null) {
-        if (!isOwner(teamId)) throw new Error('관리자 지정은 대표만 할 수 있습니다');
+      if (patch.role != null || patch.perms != null) {
+        if (!isOwner(teamId)) throw new Error('임원 지정과 권한은 대표만 정할 수 있습니다');
         if (m.role === 'owner') throw new Error('대표의 역할은 대표 넘기기로 바꿉니다');
-        m.role = patch.role === 'admin' ? 'admin' : 'member';
+        if (patch.role != null) m.role = patch.role === 'admin' ? 'admin' : 'member';
+        if (m.role === 'admin') { if (Array.isArray(patch.perms)) m.perms = PERM_KEYS.filter((k) => patch.perms.includes(k)); else if (!Array.isArray(m.perms)) m.perms = PERM_KEYS.slice(); }
+        else delete m.perms;
       }
       save();
       return true;
@@ -324,15 +352,16 @@
       if (!isOwner(teamId)) throw new Error('대표만 넘길 수 있습니다');
       const m = memOf(teamId, userId);
       if (!m || m.status !== 'active') throw new Error('팀원에게만 넘길 수 있습니다');
-      myMem(teamId).role = 'admin'; m.role = 'owner'; save();
+      const old = myMem(teamId); old.role = 'admin'; old.perms = PERM_KEYS.slice(); // 전 대표는 모든 권한을 가진 임원
+      m.role = 'owner'; delete m.perms; save();
       return true;
     }),
     removeMember: wrap((teamId, userId) => {
-      if (!isAdmin(teamId)) throw new Error('관리자만 내보낼 수 있습니다');
+      if (!can(teamId, 'join')) throw new Error('팀원 내보내기는 대표나 권한을 받은 임원만 할 수 있습니다');
       const m = memOf(teamId, userId);
       if (!m) throw new Error('팀원이 아닙니다');
       if (m.role === 'owner') throw new Error('대표는 내보낼 수 없습니다');
-      if (m.role === 'admin' && !isOwner(teamId)) throw new Error('관리자는 대표만 내보낼 수 있습니다');
+      if (m.role === 'admin' && !isOwner(teamId)) throw new Error('임원은 대표만 내보낼 수 있습니다');
       db.memberships.splice(db.memberships.indexOf(m), 1);
       db.attendance = db.attendance.filter((a) => !(a.teamId === teamId && a.userId === userId));
       save();
@@ -365,7 +394,7 @@
       return true;
     }),
     resetWeek: wrap((teamId) => {
-      if (!isAdmin(teamId)) throw new Error('관리자만 초기화할 수 있습니다');
+      if (!can(teamId, 'schedule')) throw new Error('참석 체크 초기화는 대표나 권한을 받은 임원만 할 수 있습니다');
       const wk = weekKey();
       db.attendance = db.attendance.filter((a) => !(a.teamId === teamId && a.week === wk));
       save();
@@ -376,7 +405,7 @@
     listPosts: wrap((teamId) => {
       if (!isActive(teamId)) throw new Error('팀원에게만 공개됩니다');
       const uidMe = me().id;
-      return db.posts.filter((p) => p.teamId === teamId).sort((a, b) => b.at - a.at).map((p) => ({
+      return db.posts.filter((p) => p.teamId === teamId && p.kind !== 'msg').sort((a, b) => b.at - a.at).map((p) => ({
         id: p.id, name: p.name, body: p.body, at: p.at, mine: p.userId === uidMe,
         comments: (p.comments || []).map((c) => ({ id: c.id, name: c.name, body: c.body, at: c.at, mine: c.userId === uidMe }))
       }));
@@ -409,6 +438,71 @@
       p.comments.splice(p.comments.indexOf(c), 1); save(); return true;
     }),
 
+    /* ----- 문의 (다른 팀·사람 → 대표에게. 게스트 참여·교류전 요청 등)
+     *  게시판과 같은 표(posts)에 kind 'msg' 로 둔다. 보낸 사람은 자기 문의만, 대표·'msg' 권한 임원은 그 팀에 온 문의를 모두 본다 ----- */
+    listMessages: wrap((teamId) => {
+      team(teamId);
+      const u = me(); if (!u) return [];
+      const staff = can(teamId, 'msg');
+      return db.posts.filter((p) => p.teamId === teamId && p.kind === 'msg' && (staff || p.userId === u.id)).sort((a, b) => (b.lastAt || b.at) - (a.lastAt || a.at)).map((p) => ({
+        id: p.id, type: p.type, name: p.name, fromTeam: p.fromTeam || '', body: p.body, at: p.at, lastAt: p.lastAt || p.at, mine: p.userId === u.id,
+        unread: staff && p.userId !== u.id ? !p.readByTeam : !p.readByUser,
+        replies: (p.replies || []).map((r) => ({ by: r.by, name: r.name, body: r.body, at: r.at }))
+      }));
+    }),
+    sendMessage: wrap((teamId, type, body) => {
+      needLogin();
+      const t = team(teamId), u = me();
+      const b = clean(body, 1000); if (!b) throw new Error('문의 내용을 입력하세요');
+      const ty = MSG_TYPES.some((x) => x[0] === type) ? type : 'etc';
+      const recent = db.posts.filter((p) => p.teamId === teamId && p.kind === 'msg' && p.userId === u.id && Date.now() - p.at < 86400e3).length;
+      if (recent >= 5) throw new Error('같은 팀에는 하루에 문의를 5개까지 보낼 수 있습니다. 보낸 문의에 이어서 글을 남겨 주세요');
+      // 보낸 사람의 소속 팀 이름 (기본 팀, 없으면 첫 소속 팀)
+      const pt = (db.prefs[u.id] || {}).primaryTeamId;
+      const mine = db.memberships.filter((m) => m.userId === u.id && m.status === 'active' && m.teamId !== teamId && db.teams[m.teamId]);
+      const from = (mine.find((m) => m.teamId === pt) || mine[0]);
+      const now = Date.now();
+      db.posts.push({ id: uid('m'), kind: 'msg', type: ty, teamId, userId: u.id, name: u.nickname, fromTeam: from ? db.teams[from.teamId].name : '', body: b, at: now, lastAt: now, replies: [], readByTeam: false, readByUser: true });
+      const pr = prefsOf(u.id), sent = (pr.sent || []).filter((x) => x.teamId !== teamId);
+      sent.unshift({ teamId, teamName: t.name, sido: t.sido, at: now }); pr.sent = sent.slice(0, 30);
+      save();
+      return true;
+    }),
+    replyMessage: wrap((teamId, msgId, body) => {
+      needLogin();
+      const p = db.posts.find((x) => x.id === msgId && x.teamId === teamId && x.kind === 'msg');
+      if (!p) throw new Error('없는 문의입니다');
+      const u = me(), staff = can(teamId, 'msg');
+      if (!staff && p.userId !== u.id) throw new Error('보낸 사람과 대표만 답할 수 있습니다');
+      const b = clean(body, 1000); if (!b) throw new Error('내용을 입력하세요');
+      const asTeam = staff && p.userId !== u.id, now = Date.now();
+      const m = myMem(teamId);
+      (p.replies || (p.replies = [])).push({ by: asTeam ? 'team' : 'user', userId: u.id, name: asTeam ? (m.profile.name || u.nickname) + ' (' + (m.role === 'owner' ? '대표' : '임원') + ')' : u.nickname, body: b, at: now });
+      if (p.replies.length > 50) p.replies = p.replies.slice(-50);
+      p.lastAt = now;
+      if (asTeam) { p.readByTeam = true; p.readByUser = false; } else { p.readByUser = true; p.readByTeam = false; }
+      save();
+      return true;
+    }),
+    readMessage: wrap((teamId, msgId) => {
+      needLogin();
+      const p = db.posts.find((x) => x.id === msgId && x.teamId === teamId && x.kind === 'msg');
+      if (!p) return false;
+      const u = me();
+      if (p.userId === u.id) { if (p.readByUser) return false; p.readByUser = true; }
+      else if (can(teamId, 'msg')) { if (p.readByTeam) return false; p.readByTeam = true; }
+      else return false;
+      save();
+      return true;
+    }),
+    deleteMessage: wrap((teamId, msgId) => {
+      needLogin();
+      const p = db.posts.find((x) => x.id === msgId && x.teamId === teamId && x.kind === 'msg');
+      if (!p) throw new Error('없는 문의입니다');
+      if (p.userId !== me().id && !can(teamId, 'msg')) throw new Error('보낸 사람과 대표만 지울 수 있습니다');
+      db.posts.splice(db.posts.indexOf(p), 1); save(); return true;
+    }),
+
     /* ----- 경기 기록 (다른 팀도 볼 수 있음) ----- */
     listGames: wrap((teamId) => {
       team(teamId);
@@ -418,7 +512,7 @@
       if (!isActive(teamId)) throw new Error('팀원만 기록할 수 있습니다');
       const today = ymd(new Date());
       if (!/^\d{4}-\d{2}-\d{2}$/.test(g.date || '')) throw new Error('날짜가 올바르지 않습니다');
-      if (g.date !== today && !isAdmin(teamId)) throw new Error('회원은 경기 당일 기록만 저장할 수 있습니다. 지난 기록은 대표·관리자가 저장합니다');
+      if (g.date !== today && !can(teamId, 'records')) throw new Error('회원은 경기 당일 기록만 저장할 수 있습니다. 지난 기록은 대표나 권한을 받은 임원이 저장합니다');
       const no = Math.max(1, Math.min(99, parseInt(g.gameNo, 10) || 1));
       const scope = g.scope === 'team' ? 'team' : 'all';
       const who = myMem(teamId).profile.name, now = Date.now();
@@ -447,7 +541,7 @@
       return { id: row.id, count };
     }),
     deleteGame: wrap((teamId, gameId) => {
-      if (!isAdmin(teamId)) throw new Error('관리자만 지울 수 있습니다');
+      if (!can(teamId, 'records')) throw new Error('경기 기록 삭제는 대표나 권한을 받은 임원만 할 수 있습니다');
       db.games = db.games.filter((x) => !(x.id === gameId && x.teamId === teamId)); save(); return true;
     }),
 
@@ -520,7 +614,7 @@
     db.games = db.games.filter((g) => g.teamId !== teamId);
     db.lineups = db.lineups.filter((x) => x.teamId !== teamId);
     db.videos = db.videos.filter((x) => x.teamId !== teamId);
-    Object.keys(db.prefs).forEach((k) => { if (db.prefs[k].primaryTeamId === teamId) delete db.prefs[k]; });
+    Object.keys(db.prefs).forEach((k) => { if (db.prefs[k].primaryTeamId === teamId) delete db.prefs[k].primaryTeamId; });
   }
 
   /* ---------- 체험용 예시 데이터 ---------- */
